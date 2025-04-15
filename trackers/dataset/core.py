@@ -47,9 +47,7 @@ class Dataset(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_frame_iterator(
-        self, sequence_name: str
-    ) -> Iterator[Dict[str, Any]]:
+    def get_frame_iterator(self, sequence_name: str) -> Iterator[Dict[str, Any]]:
         """
         Returns an iterator over frame information dictionaries for a sequence.
 
@@ -93,7 +91,8 @@ class MOTChallengeDataset(Dataset):
                           MOTChallenge dataset (e.g., `/path/to/MOT17/train`).
 
         Raises:
-            FileNotFoundError: If the `dataset_path` does not exist or is not a directory.
+            FileNotFoundError: If the `dataset_path` does not exist or is not a
+            directory.
         """
         self.root_path = Path(dataset_path)
         if not self.root_path.is_dir():
@@ -104,7 +103,10 @@ class MOTChallengeDataset(Dataset):
         )
 
     def _find_sequences(self) -> List[str]:
-        """Finds valid sequence directories (containing seqinfo.ini) within the root path."""
+        """
+        Finds valid sequence directories (containing seqinfo.ini) within
+        the root path.
+        """
         sequences = []
         for item in self.root_path.iterdir():
             # Check if it's a directory and contains seqinfo.ini
@@ -134,7 +136,7 @@ class MOTChallengeDataset(Dataset):
               'frame_idx', 'obj_id', 'xyxy', 'confidence', 'class_id'.
             - A dictionary mapping frame indices (int) to lists of detection/annotation
               dictionaries belonging to that frame.
-            Returns ([], {}) if the file doesn't exist or an error occurs during parsing.
+            Returns ([], {}) if the file doesn't exist or an error occurs during parsing
         """
         if not file_path.exists():
             return [], {}
@@ -320,9 +322,7 @@ class MOTChallengeDataset(Dataset):
             print(f"Error parsing {seq_info_path}: {e}")
             return {}
 
-    def get_frame_iterator(
-        self, sequence_name: str
-    ) -> Iterator[Dict[str, Any]]:
+    def get_frame_iterator(self, sequence_name: str) -> Iterator[Dict[str, Any]]:
         """
         Returns an iterator yielding information about each frame in a sequence.
 
@@ -336,7 +336,8 @@ class MOTChallengeDataset(Dataset):
             Dictionaries, each containing:
             - 'frame_idx': The frame number (int, 1-based).
             - 'image_path': The absolute path to the image file (str).
-            Yields nothing if sequence info is incomplete or image files cannot be found.
+            Yields nothing if sequence info is incomplete or image files
+            cannot be found.
         """
         seq_info = self.get_sequence_info(sequence_name)
         num_frames = seq_info.get("seqLength")
@@ -468,7 +469,8 @@ class MOTChallengeDataset(Dataset):
 
     @property
     def has_public_detections(self) -> bool:
-        """Returns True if public detections have been loaded via `load_public_detections`."""
+        """Returns True if public detections have been loaded via
+        `load_public_detections`."""
         return self._public_detections is not None
 
     def get_public_detections(self, image_path: str) -> sv.Detections:

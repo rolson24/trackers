@@ -106,7 +106,7 @@ def generate_tracks(
 
     # Handle different types of detection sources
     def get_detections(
-        frame: Optional[np.ndarray], frame_info: Dict[str, Any]
+        frame: Optional[np.ndarray], frame_info: Dict[str, Union[str, int]]
     ) -> sv.Detections:
         image_path = frame_info.get("image_path")
         frame_idx = frame_info.get("frame_idx")
@@ -154,7 +154,9 @@ def generate_tracks(
             )
 
     def _process_tracking(
-        detections: sv.Detections, frame: Optional[np.ndarray], frame_info: Dict[str, Any]
+        detections: sv.Detections,
+        frame: Optional[np.ndarray],
+        frame_info: Dict[str, Any],
     ) -> sv.Detections:
         sequence_name = frame_info.get("sequence_name")
         frame_idx = frame_info.get("frame_idx")
@@ -287,7 +289,7 @@ def _evaluate_single_sequence(
 
     Args:
         seq_name: The name of the sequence being evaluated.
-        seq_tracks: The sv.Detections object containing tracking results for the sequence.
+        seq_tracks: The sv.Detections object containing tracking result for the sequence
                     Expected to have `tracker_id` and `data['frame_idx']`.
         dataset: The Dataset object used to load ground truth and sequence info.
         metrics_to_compute: A dictionary mapping metric names to their instantiated
@@ -493,7 +495,7 @@ def evaluate_tracks(
             print("Warning: No sequences found in the dataset to load tracks for.")
             return {"per_sequence": {}, "overall": {}}
 
-        tracks = load_tracks_from_disk(tracks_path or ".", sequence_names) # type: ignore
+        tracks = load_tracks_from_disk(tracks_path or ".", sequence_names)  # type: ignore
 
     # Compute metrics for each sequence
     results: Dict[str, Dict[str, Any]] = {
@@ -558,10 +560,18 @@ def evaluate_tracker(
 
     Args:
         dataset: The Dataset object providing sequences, frames, and ground truth.
-        detection_source: Source providing sv.Detections per frame (passed to
-                          `generate_tracks`).
-        tracker_source: Source providing tracked sv.Detections per frame (passed to
-                        `generate_tracks`).
+        detection_source: Source providing sv.Detections per frame. Can be:
+                          - MOTChallengeDataset (uses loaded public detections).
+                          - sv.DetectionDataset (uses annotations keyed by image path).
+                          - A callback function: `(frame, frame_info) -> sv.Detections`.
+                            The frame can be None if image loading fails.
+        tracker_source: Source providing tracked sv.Detections. Can be:
+                        - A BaseTracker object (implements update method).
+                        - A callback function:
+                          `(detections, frame, frame_info) -> sv.Detections`.
+                          The frame can be None if image loading fails.
+                          *Note: The callback function should handle resetting
+                          the tracker state internally if needed (e.g., at frame 1).*
         cache_tracks: If True, saves the generated tracks to disk using `cache_dir`.
         cache_dir: Directory path (str or Path) to save tracking results if
                    `cache_tracks` is True.

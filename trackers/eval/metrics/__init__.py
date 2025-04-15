@@ -11,7 +11,6 @@ from .base_tracking_metric import TrackingMetric
 from .clear import CLEARMetric
 from .count import CountMetric
 
-
 # --- Available Metrics Registry ---
 # Maps metric names (lowercase for consistency) to their class implementation.
 # The name() method of the class should ideally return the key used here,
@@ -49,8 +48,8 @@ def get_metric_instance(name: str) -> Optional[TrackingMetric]:
 __all__ = [
     "AVAILABLE_METRICS",
     "PLACEHOLDER_METRIC_NAMES",
-    "CountMetric",
     "CLEARMetric",  # Added CLEARMetric to __all__
+    "CountMetric",
     "TrackingMetric",
     "get_metric_instance",
     "instantiate_metrics",  # Added instantiate_metrics to __all__
