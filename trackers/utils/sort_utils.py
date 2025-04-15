@@ -128,7 +128,9 @@ def update_detections_with_track_ids(
                 ):
                     # If tracker is mature but still has ID -1, assign a new ID
                     if tracker_obj.tracker_id == -1:
-                        tracker_obj.tracker_id = SORTKalmanBoxTracker.get_next_tracker_id()
+                        tracker_obj.tracker_id = (
+                            SORTKalmanBoxTracker.get_next_tracker_id()
+                        )
                     final_tracker_ids[col] = tracker_obj.tracker_id
                 used_rows.add(row)
                 used_cols.add(col)

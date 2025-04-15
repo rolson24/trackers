@@ -163,6 +163,8 @@ cython_debug/
 .pypirc
 
 # Repository-specific stuff
+.ipynb_checkpoints/
+.idea/
 data/
 test.py
 **.pt
