@@ -158,9 +158,7 @@ class CLEARMetric(TrackingMetric):
             A dictionary containing computed CLEAR metric components and final
             derived metrics (MOTA, MOTP, etc.) for the sequence.
         """
-        res: Dict[str, float] = {
-            field: 0.0 for field in [*self.fields, "MOTP_sum"]
-        }
+        res: Dict[str, float] = {field: 0.0 for field in [*self.fields, "MOTP_sum"]}
 
         # --- Input Validation ---
         if "frame_idx" not in ground_truth.data:

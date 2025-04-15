@@ -107,4 +107,3 @@ class TrackingMetric(Protocol):
                 aggregated[key] = 0.0  # Or some other default/indicator
 
         return aggregated
-

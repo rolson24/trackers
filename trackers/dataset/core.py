@@ -47,9 +47,7 @@ class Dataset(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_frame_iterator(
-        self, sequence_name: str
-    ) -> Iterator[Dict[str, Any]]:
+    def get_frame_iterator(self, sequence_name: str) -> Iterator[Dict[str, Any]]:
         """
         Returns an iterator over frame information dictionaries for a sequence.
 
@@ -320,9 +318,7 @@ class MOTChallengeDataset(Dataset):
             print(f"Error parsing {seq_info_path}: {e}")
             return {}
 
-    def get_frame_iterator(
-        self, sequence_name: str
-    ) -> Iterator[Dict[str, Any]]:
+    def get_frame_iterator(self, sequence_name: str) -> Iterator[Dict[str, Any]]:
         """
         Returns an iterator yielding information about each frame in a sequence.
 

@@ -154,7 +154,9 @@ def generate_tracks(
             )
 
     def _process_tracking(
-        detections: sv.Detections, frame: Optional[np.ndarray], frame_info: Dict[str, Any]
+        detections: sv.Detections,
+        frame: Optional[np.ndarray],
+        frame_info: Dict[str, Any],
     ) -> sv.Detections:
         sequence_name = frame_info.get("sequence_name")
         frame_idx = frame_info.get("frame_idx")
@@ -493,7 +495,7 @@ def evaluate_tracks(
             print("Warning: No sequences found in the dataset to load tracks for.")
             return {"per_sequence": {}, "overall": {}}
 
-        tracks = load_tracks_from_disk(tracks_path or ".", sequence_names) # type: ignore
+        tracks = load_tracks_from_disk(tracks_path or ".", sequence_names)  # type: ignore
 
     # Compute metrics for each sequence
     results: Dict[str, Dict[str, Any]] = {
