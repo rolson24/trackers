@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 import supervision as sv
 
-from trackers.base import BaseTracker
+from trackers.core.base import BaseTracker
 from trackers.dataset.core import Dataset, MOTChallengeDataset
 from trackers.eval.metrics import (
     instantiate_metrics,
