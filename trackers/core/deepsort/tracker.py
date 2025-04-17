@@ -117,7 +117,7 @@ class DeepSORTTracker(BaseTrackerWithFeatures):
             combined distance.
 
     Args:
-        feature_extractor (Optional[Union[DeepSORTFeatureExtractor, torch.nn.Module, str]]):
+        feature_extractor (Union[DeepSORTFeatureExtractor, torch.nn.Module, str]):
             A feature extractor model checkpoint URL, model checkpoint path, or model
             instance or an instance of `DeepSORTFeatureExtractor` to extract
             appearance features. By default, the a default model checkpoint is downloaded
@@ -153,9 +153,7 @@ class DeepSORTTracker(BaseTrackerWithFeatures):
 
     def __init__(
         self,
-        feature_extractor: Optional[
-            Union[DeepSORTFeatureExtractor, torch.nn.Module, str]
-        ] = None,
+        feature_extractor: Union[DeepSORTFeatureExtractor, torch.nn.Module, str],
         device: Optional[str] = None,
         lost_track_buffer: int = 30,
         frame_rate: float = 30.0,
@@ -166,20 +164,9 @@ class DeepSORTTracker(BaseTrackerWithFeatures):
         appearance_weight: float = 0.5,
         distance_metric: str = "cosine",
     ):
-        if feature_extractor is None:
-            self.feature_extractor = DeepSORTFeatureExtractor(device=device)
-        elif isinstance(feature_extractor, str):
-            self.feature_extractor = DeepSORTFeatureExtractor(
-                model_or_checkpoint_path=feature_extractor,
-                device=device,
-            )
-        elif isinstance(feature_extractor, torch.nn.Module):
-            self.feature_extractor = DeepSORTFeatureExtractor(
-                model_or_checkpoint_path=feature_extractor,
-                device=device,
-            )
-        else:
-            self.feature_extractor = feature_extractor
+        self.feature_extractor = self._initialize_feature_extractor(
+            feature_extractor, device
+        )
 
         self.lost_track_buffer = lost_track_buffer
         self.frame_rate = frame_rate
@@ -197,6 +184,30 @@ class DeepSORTTracker(BaseTrackerWithFeatures):
         )
 
         self.trackers: list[DeepSORTKalmanBoxTracker] = []
+
+    def _initialize_feature_extractor(
+        self,
+        feature_extractor: Union[DeepSORTFeatureExtractor, torch.nn.Module, str],
+        device: Optional[str],
+    ) -> DeepSORTFeatureExtractor:
+        """
+        Initialize the feature extractor based on the input type.
+
+        Args:
+            feature_extractor: The feature extractor input, which can be a model path,
+                               a torch module, or a DeepSORTFeatureExtractor instance.
+            device: The device to run the model on.
+
+        Returns:
+            DeepSORTFeatureExtractor: The initialized feature extractor.
+        """
+        if isinstance(feature_extractor, (str, torch.nn.Module)):
+            return DeepSORTFeatureExtractor(
+                model_or_checkpoint_path=feature_extractor,
+                device=device,
+            )
+        else:
+            return feature_extractor
 
     def _get_appearance_distance_matrix(
         self,
@@ -394,3 +405,7 @@ class DeepSORTTracker(BaseTrackerWithFeatures):
         )
 
         return updated_detections
+
+    def reset(self) -> None:
+        self.trackers = []
+        DeepSORTKalmanBoxTracker.count_id = 0

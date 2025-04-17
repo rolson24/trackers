@@ -22,7 +22,7 @@ class SORTTracker(BaseTracker):
         import supervision as sv
         from rfdetr import RFDETRBase
         from rfdetr.util.coco_classes import COCO_CLASSES
-        from trackers.sort_tracker import SORTTracker
+        from trackers import SORTTracker
 
 
         model = RFDETRBase(device="mps")
@@ -219,3 +219,7 @@ class SORTTracker(BaseTracker):
         )
 
         return updated_detections
+
+    def reset(self) -> None:
+        self.trackers = []
+        SORTKalmanBoxTracker.count_id = 0
