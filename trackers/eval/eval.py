@@ -282,61 +282,78 @@ def _relabel_ids(detections: sv.Detections) -> sv.Detections:
     if len(detections) == 0 or detections.tracker_id is None:
         return detections
 
-    unique_ids = np.unique(detections.tracker_id)
-    if (
-        len(unique_ids) == 0
-    ):  # Handle case where all IDs might be NaN or similar if preprocessing failed
+    # --- Robust ID Handling ---
+    # 1. Filter out potential NaN values first
+    valid_ids_mask = ~np.isnan(detections.tracker_id)
+    if not np.any(valid_ids_mask):
+        # All IDs were NaN or array was empty after filtering
+        return detections # Nothing to relabel
+
+    # 2. Get unique integer IDs
+    try:
+        # Attempt conversion to int, np.unique handles the rest
+        unique_ids = np.unique(detections.tracker_id[valid_ids_mask].astype(int))
+    except ValueError:
+        print("Warning: Could not convert tracker IDs to integers during relabeling. Skipping.")
         return detections
 
-    max_id = np.max(unique_ids)
-    # Handle potential non-integer IDs if they slip through, though they shouldn't
-    if not np.issubdtype(type(max_id), np.integer):
-        print(
-            f"Warning: Non-integer max unique ID found during relabeling: {max_id}. Skipping relabel."
-        )
-        return detections  # Or handle more robustly
+    if len(unique_ids) == 0:
+        # Should not happen if valid_ids_mask passed, but as a safeguard
+        return detections
+    # --- End Robust ID Handling ---
 
-    # Ensure map size is sufficient, handle negative IDs if they exist by shifting
+
+    # Now unique_ids contains only valid integers
+    max_id = np.max(unique_ids)
     min_id = np.min(unique_ids)
+
+    # The previous type check is no longer needed as we ensured integer types
+    # if not np.issubdtype(type(max_id), np.integer): # Removed check
+    #     print(
+    #         f"Warning: Non-integer max unique ID found during relabeling: {max_id}. Skipping relabel."
+    #     )
+    #     return detections
+
     offset = 0
     if min_id < 0:
         print(
             f"Warning: Negative tracker IDs found ({min_id}). Shifting IDs for relabeling."
         )
-        offset = -min_id  # Shift everything to be non-negative
-        max_id += offset
+        offset = -min_id
+        max_id += offset # Adjust max_id after offset calculation
 
-    if np.isnan(max_id):  # Check if max_id became NaN (e.g., only NaN IDs)
-        print("Warning: Max ID is NaN during relabeling. Skipping.")
+    # Check max_id validity after potential offset adjustment
+    if np.isnan(max_id):
+        print("Warning: Max ID is NaN during relabeling after offset. Skipping.")
         return detections
 
-    id_map = np.full(int(max_id) + 1, fill_value=-1, dtype=int)  # Use -1 for unmapped
+    # Ensure id_map size is correct integer
+    map_size = int(max_id) + 1
+    id_map = np.full(map_size, fill_value=-1, dtype=int)
     new_id_counter = 0
+    # Initialize new_ids based on the original tracker_id shape and type
     new_ids = np.full_like(detections.tracker_id, fill_value=-1, dtype=int)
 
-    valid_mask = ~np.isnan(detections.tracker_id)  # Ignore NaN IDs
-    original_ids_valid = detections.tracker_id[valid_mask].astype(int) + offset
+    # Iterate through the original positions where IDs were valid
+    original_indices = np.where(valid_ids_mask)[0]
+    for i in original_indices:
+        original_id = int(detections.tracker_id[i]) + offset # Apply offset
+        if original_id >= map_size or original_id < 0: # Bounds check
+             print(f"Warning: Original ID {original_id-offset} out of bounds for map during relabeling. Skipping ID.")
+             continue
 
-    for i, original_id in enumerate(original_ids_valid):
-        if id_map[original_id] == -1:  # First time seeing this ID
+        if id_map[original_id] == -1:
             id_map[original_id] = new_id_counter
-            new_ids[np.where(valid_mask)[0][i]] = (
-                new_id_counter  # Assign new ID at the correct position
-            )
+            new_ids[i] = new_id_counter
             new_id_counter += 1
         else:
-            new_ids[np.where(valid_mask)[0][i]] = id_map[
-                original_id
-            ]  # Assign existing new ID
+            new_ids[i] = id_map[original_id]
 
-    # Handle potential -1s if any IDs were invalid/NaN
-    if np.any(new_ids == -1):
+    # Handle potential -1s if any IDs were invalid/NaN or out of bounds
+    if np.any(new_ids[valid_ids_mask] == -1): # Check only where IDs were originally valid
         print(
-            "Warning: Some tracker IDs could not be relabeled (were potentially NaN or invalid)."
+            "Warning: Some valid tracker IDs could not be relabeled (check bounds warnings)."
         )
-        # Option: Keep original IDs for these? Or assign a special ID?
-        # For now, we keep -1, but CLEAR might fail.
-        # A better approach might be to filter these detections earlier.
 
     detections.tracker_id = new_ids
     return detections
