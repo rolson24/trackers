@@ -43,7 +43,9 @@ def _add_frame_metadata_to_detections(
         detections.data["frame_idx"] = frame_indices
         detections.data["image_path"] = image_paths
     else:
-        detections.data = {}
+        # Ensure data dictionary exists even for empty detections
+        if not detections.data:
+            detections.data = {}
         detections.data["frame_idx"] = np.empty(0, dtype=int)
         detections.data["image_path"] = np.empty(0, dtype=object)
     return detections
@@ -109,7 +111,6 @@ def generate_tracks(
         frame: Optional[np.ndarray], frame_info: Dict[str, Union[str, int]]
     ) -> sv.Detections:
         image_path = frame_info.get("image_path")
-        frame_idx = frame_info.get("frame_idx")
 
         if isinstance(detection_source, MOTChallengeDataset):
             if detection_source.has_public_detections:
@@ -118,27 +119,23 @@ def generate_tracks(
                     print(f"Warning: Detected class_id is not None for {image_path}")
                     # Ensure class_id is None
                     dets.class_id = None
-                return _add_frame_metadata_to_detections(dets, frame_idx, image_path)
+                return dets
             else:
                 print(
                     "Warning: MOTChallengeDataset provided as detection_source, \
                         but public detections not loaded. Returning empty."
                 )
-                return _add_frame_metadata_to_detections(
-                    sv.Detections.empty(), frame_idx, image_path
-                )
+                return sv.Detections.empty()
         elif isinstance(detection_source, sv.DetectionDataset):
             if image_path in detection_source.annotations:
                 dets = detection_source.annotations[image_path]
-                return _add_frame_metadata_to_detections(dets, frame_idx, image_path)
+                return dets
             else:
                 print(
                     f"Warning: No detections found for {image_path} in \
                         sv.DetectionDataset"
                 )
-                return _add_frame_metadata_to_detections(
-                    sv.Detections.empty(), frame_idx, image_path
-                )
+                return sv.Detections.empty()
         elif callable(detection_source):
             # It's a callback function
             dets = detection_source(frame, frame_info)
@@ -147,7 +144,7 @@ def generate_tracks(
                     f"Detection source callback must return sv.Detections, \
                         but got {type(dets)}"
                 )
-            return _add_frame_metadata_to_detections(dets, frame_idx, image_path)
+            return dets
         else:
             raise TypeError(
                 f"Unsupported detection_source type: {type(detection_source)}"
@@ -160,23 +157,13 @@ def generate_tracks(
     ) -> sv.Detections:
         sequence_name = frame_info.get("sequence_name")
         frame_idx = frame_info.get("frame_idx")
+        image_path = frame_info.get("image_path") # Get image path for metadata
 
         if callable(tracker_source):
             # It's a callback function
-            # Need a way to reset the tracker state.
-            # Maybe we need to have the user do that?
-            # Or we can make it explicit in the function signature
-            # (e.g., reset_tracker=True)
             tracks = tracker_source(detections, frame, frame_info)
         elif isinstance(tracker_source, BaseTracker):
             # It's a Tracker object
-            # Reset tracker at the start of each sequence
-            #  if frame_idx == 1:
-            #       tracker_source.reset()
-            # Pass frame if required by the tracker
-            #  if tracker_source.requires_frame_image:
-            #       tracks = tracker_source.update(detections, frame)
-            #  else:
             tracks = tracker_source.update(detections)
         else:
             raise TypeError(f"Unsupported tracker_source type: {type(tracker_source)}")
@@ -200,7 +187,12 @@ def generate_tracks(
             # Optionally assign dummy IDs or raise error depending on strictness needed
             tracks.tracker_id = np.full(len(tracks), -1)  # Example: assign dummy ID
 
-        return tracks
+        # Add frame metadata AFTER tracker has processed
+        tracks_with_metadata = _add_frame_metadata_to_detections(
+            tracks, frame_idx, image_path
+        )
+
+        return tracks_with_metadata
 
     # Generate tracks for all sequences
     all_tracks: Dict[str, sv.Detections] = {}
