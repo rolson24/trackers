@@ -305,6 +305,8 @@ class CLEARMetric(TrackingMetric):
                 is_idsw = (np.logical_not(np.isnan(prev_matched_tracker_ids))) & (
                     matched_tracker_ids != prev_matched_tracker_ids
                 )
+                if np.any(is_idsw):
+                    print(f"IDSW detected for GT IDs: {matched_gt_indices[is_idsw]}")
                 res["IDSW"] += np.sum(is_idsw)
 
                 # --- Update Tracking State for Next Frame ---
