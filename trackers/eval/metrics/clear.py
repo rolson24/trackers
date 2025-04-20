@@ -265,9 +265,7 @@ class CLEARMetric(TrackingMetric):
             # matches_prev_step = (current_timestep_pred_ids == gt_prev_timestep_ids) & (
             #     np.logical_not(np.isnan(gt_prev_timestep_ids))
             # )
-            matches_prev_step = (
-                current_timestep_pred_ids == gt_prev_timestep_ids
-            )
+            matches_prev_step = current_timestep_pred_ids == gt_prev_timestep_ids
             score_mat = (
                 matches_prev_step * continuity_bonus
             )  # Apply large bonus for continuity
