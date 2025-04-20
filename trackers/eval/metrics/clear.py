@@ -82,10 +82,14 @@ class CLEARMetric(TrackingMetric):
         res["MOTP"] = res["MOTP_sum"] / np.maximum(1.0, res["CLR_TP"])
         # Note: sMOTA and MOTAL are sometimes defined, but MOTA/MOTP are primary
 
-        res['sMOTA'] = (res['MOTP_sum'] - res['CLR_FP'] - res['IDSW']) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FN'])
+        res["sMOTA"] = (res["MOTP_sum"] - res["CLR_FP"] - res["IDSW"]) / np.maximum(
+            1.0, res["CLR_TP"] + res["CLR_FN"]
+        )
 
-        safe_log_idsw = np.log10(res['IDSW']) if res['IDSW'] > 0 else res['IDSW']
-        res['MOTAL'] = (res['CLR_TP'] - res['CLR_FP'] - safe_log_idsw) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FN'])
+        safe_log_idsw = np.log10(res["IDSW"]) if res["IDSW"] > 0 else res["IDSW"]
+        res["MOTAL"] = (res["CLR_TP"] - res["CLR_FP"] - safe_log_idsw) / np.maximum(
+            1.0, res["CLR_TP"] + res["CLR_FN"]
+        )
 
         # res["CLR_F1"] = res["CLR_TP"] / np.maximum(
         #     1.0, num_tracker_dets + res["FN"]
@@ -94,7 +98,6 @@ class CLEARMetric(TrackingMetric):
             1.0, res["CLR_TP"] + 0.5 * res["FN"] + 0.5 * res["FP"]
         )
         res["FP_per_frame"] = res["FP"] / np.maximum(1.0, res["CLR_Frames"])
-
 
         # Ensure all expected float fields exist, even if calculated as 0
         float_fields = [
