@@ -186,28 +186,23 @@ class CLEARMetric(TrackingMetric):
         res["CLR_Frames"] = float(len(all_frame_indices))
 
         # --- Data Structures for Tracking State ---
-        gt_ids_all = np.unique(ground_truth.tracker_id)
-        num_gt_ids = len(gt_ids_all)
-        gt_id_map = {
-            val: i for i, val in enumerate(gt_ids_all)
-        }  # Map original ID to 0-based index
+        # GT IDs are assumed to be 0-based and contiguous after preprocessing
+        unique_gt_ids_in_input = np.unique(ground_truth.tracker_id)
+        if len(unique_gt_ids_in_input) > 0:
+             # Add 1 because IDs are 0-based indices
+             num_gt_ids = int(np.max(unique_gt_ids_in_input)) + 1
+        else:
+             num_gt_ids = 0
 
-        # Per GT ID tracking stats (using 0-based index)
+        # Per GT ID tracking stats (using 0-based index from preprocessed input)
+        # Size arrays based on the maximum possible ID + 1
         gt_id_frame_count = np.zeros(num_gt_ids, dtype=int)
         gt_id_matched_count = np.zeros(num_gt_ids, dtype=int)
-        gt_id_frag_count = np.zeros(
-            num_gt_ids, dtype=int
-        )  # Incremented when a match starts after a gap
+        gt_id_frag_count = np.zeros(num_gt_ids, dtype=int)
 
         # Track last matched tracker ID for each GT ID (using 0-based index)
-        # Stores the *actual* tracker ID from predictions
-        prev_tracker_id = np.full(
-            num_gt_ids, np.nan
-        )  # For IDSW calculation (across any gap)
-        prev_timestep_tracker_id = np.full(
-            num_gt_ids, np.nan
-        )  # For matching continuity (previous frame only)
-        # Tracks if a GT ID was *matched* in the previous timestep (not just present)
+        prev_tracker_id = np.full(num_gt_ids, np.nan)
+        prev_timestep_tracker_id = np.full(num_gt_ids, np.nan)
         matched_in_prev_step = np.zeros(num_gt_ids, dtype=bool)
 
         # --- Frame-by-Frame Processing ---
@@ -215,16 +210,13 @@ class CLEARMetric(TrackingMetric):
             gt_dets_t = ground_truth[ground_truth.data["frame_idx"] == frame_idx]
             pred_dets_t = predictions[predictions.data["frame_idx"] == frame_idx]
 
-            gt_ids_t_orig = gt_dets_t.tracker_id
+            # Use tracker_id directly as it's assumed to be 0-based index
+            gt_ids_t = gt_dets_t.tracker_id
             pred_ids_t = pred_dets_t.tracker_id
 
-            # Map GT IDs to 0-based index for internal arrays
-            gt_ids_t = np.array(
-                [gt_id_map[gid] for gid in gt_ids_t_orig if gid in gt_id_map], dtype=int
-            )
-
-            # Update frame count for present GT IDs
-            gt_id_frame_count[gt_ids_t] += 1
+            # Update frame count for present GT IDs (using direct 0-based IDs)
+            if len(gt_ids_t) > 0: # Check if gt_ids_t is not empty before indexing
+                 gt_id_frame_count[gt_ids_t] += 1
 
             # Handle cases with no detections in the frame
             if len(gt_ids_t) == 0:
