@@ -90,7 +90,9 @@ class CLEARMetric(TrackingMetric):
         # res["CLR_F1"] = res["CLR_TP"] / np.maximum(
         #     1.0, num_tracker_dets + res["FN"]
         # )  # F1 = TP / (TP + 0.5*FP + 0.5*FN) = TP / (NumPred + FN)
-        res['CLR_F1'] = res['CLR_TP'] / np.maximum(1.0, res['CLR_TP'] + 0.5*res['FN'] + 0.5*res['FP'])
+        res["CLR_F1"] = res["CLR_TP"] / np.maximum(
+            1.0, res["CLR_TP"] + 0.5 * res["FN"] + 0.5 * res["FP"]
+        )
         res["FP_per_frame"] = res["FP"] / np.maximum(1.0, res["CLR_Frames"])
 
 
