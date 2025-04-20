@@ -32,7 +32,7 @@ class CLEARMetric(TrackingMetric):
         Args:
             res: Dictionary containing the base counts accumulated over a sequence
                  or aggregated across sequences. Expected keys include 'CLR_TP',
-                 'CLR_FN', 'CLR_FP', 'IDSW', 'MOTP_sum', 'MT', 'ML', 'PT', 'Frag',
+                 'FN', 'FP', 'IDSW', 'MOTP_sum', 'MT', 'ML', 'PT', 'Frag',
                  'CLR_Frames'.
 
         Returns:
@@ -41,8 +41,8 @@ class CLEARMetric(TrackingMetric):
         # Ensure necessary counts are present, default to 0.0 if missing
         required_counts = [
             "CLR_TP",
-            "CLR_FN",
-            "CLR_FP",
+            "FN",
+            "FP",
             "IDSW",
             "MOTP_sum",
             "MT",
@@ -54,43 +54,43 @@ class CLEARMetric(TrackingMetric):
         for key in required_counts:
             res.setdefault(key, 0.0)
 
-        num_gt_dets = res["CLR_TP"] + res["CLR_FN"]
-        num_tracker_dets = res["CLR_TP"] + res["CLR_FP"]
+        num_gt_dets = res["CLR_TP"] + res["FN"]
+        num_tracker_dets = res["CLR_TP"] + res["FP"]
         num_gt_ids = res["MT"] + res["ML"] + res["PT"]
 
         res["MTR"] = res["MT"] / np.maximum(1.0, num_gt_ids)
         res["MLR"] = res["ML"] / np.maximum(1.0, num_gt_ids)
         res["PTR"] = res["PT"] / np.maximum(1.0, num_gt_ids)
-        res["CLR_Re"] = res["CLR_TP"] / np.maximum(1.0, num_gt_dets)  # Recall
-        res["CLR_Pr"] = res["CLR_TP"] / np.maximum(1.0, num_tracker_dets)  # Precision
+        res["Recall"] = res["CLR_TP"] / np.maximum(1.0, num_gt_dets)  # Recall
+        res["Precision"] = res["CLR_TP"] / np.maximum(1.0, num_tracker_dets)  # Precision
 
-        #         res['MODA'] = (res['CLR_TP'] - res['CLR_FP']) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FN'])
-        # res['MOTA'] = (res['CLR_TP'] - res['CLR_FP'] - res['IDSW']) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FN'])
-        res["MODA"] = (res["CLR_TP"] - res["CLR_FP"]) / np.maximum(
-            1.0, res["CLR_TP"] + res["CLR_FN"]
+        #         res['MODA'] = (res['CLR_TP'] - res['FP']) / np.maximum(1.0, res['CLR_TP'] + res['FN'])
+        # res['MOTA'] = (res['CLR_TP'] - res['FP'] - res['IDSW']) / np.maximum(1.0, res['CLR_TP'] + res['FN'])
+        res["MODA"] = (res["CLR_TP"] - res["FP"]) / np.maximum(
+            1.0, res["CLR_TP"] + res["FN"]
         )
-        res["MOTA"] = (res["CLR_TP"] - res["CLR_FP"] - res["IDSW"]) / np.maximum(
-            1.0, res["CLR_TP"] + res["CLR_FN"]
+        res["MOTA"] = (res["CLR_TP"] - res["FP"] - res["IDSW"]) / np.maximum(
+            1.0, res["CLR_TP"] + res["FN"]
         )
 
-        # res["MODA"] = (res["CLR_TP"] - res["CLR_FP"]) / np.maximum(1.0, num_gt_dets)
-        # res["MOTA"] = (res["CLR_TP"] - res["CLR_FP"] - res["IDSW"]) / np.maximum(
+        # res["MODA"] = (res["CLR_TP"] - res["FP"]) / np.maximum(1.0, num_gt_dets)
+        # res["MOTA"] = (res["CLR_TP"] - res["FP"] - res["IDSW"]) / np.maximum(
         #     1.0, num_gt_dets
         # )
         res["MOTP"] = res["MOTP_sum"] / np.maximum(1.0, res["CLR_TP"])
         # Note: sMOTA and MOTAL are sometimes defined, but MOTA/MOTP are primary
         res["CLR_F1"] = res["CLR_TP"] / np.maximum(
-            1.0, num_tracker_dets + res["CLR_FN"]
+            1.0, num_tracker_dets + res["FN"]
         )  # F1 = TP / (TP + 0.5*FP + 0.5*FN) = TP / (NumPred + FN)
-        res["FP_per_frame"] = res["CLR_FP"] / np.maximum(1.0, res["CLR_Frames"])
+        res["FP_per_frame"] = res["FP"] / np.maximum(1.0, res["CLR_Frames"])
 
         # Ensure all expected float fields exist, even if calculated as 0
         float_fields = [
             "MOTA",
             "MOTP",
             "MODA",
-            "CLR_Re",
-            "CLR_Pr",
+            "Recall",
+            "Precision",
             "MTR",
             "PTR",
             "MLR",
@@ -115,8 +115,8 @@ class CLEARMetric(TrackingMetric):
         # Define fields following trackeval naming convention where possible
         self.integer_fields = [
             "CLR_TP",
-            "CLR_FN",
-            "CLR_FP",
+            "FN",
+            "FP",
             "IDSW",
             "MT",
             "PT",
@@ -128,8 +128,8 @@ class CLEARMetric(TrackingMetric):
             "MOTA",
             "MOTP",
             "MODA",
-            "CLR_Re",
-            "CLR_Pr",
+            "Recall",
+            "Precision",
             "MTR",
             "PTR",
             "MLR",
@@ -230,13 +230,13 @@ class CLEARMetric(TrackingMetric):
 
             # Handle cases with no detections in the frame
             if len(gt_ids_t) == 0:
-                res["CLR_FP"] += len(pred_ids_t)
+                res["FP"] += len(pred_ids_t)
                 # Reset previous timestep tracker IDs for GT IDs not present
                 prev_timestep_tracker_id[:] = np.nan
                 matched_in_prev_step[:] = False
                 continue
             if len(pred_ids_t) == 0:
-                res["CLR_FN"] += len(gt_ids_t)
+                res["FN"] += len(gt_ids_t)
                 # Reset previous timestep tracker IDs for GT IDs not present
                 prev_timestep_tracker_id[:] = np.nan
                 matched_in_prev_step[:] = False
@@ -293,8 +293,8 @@ class CLEARMetric(TrackingMetric):
             # --- Update Metrics based on Matches ---
             num_matches = len(match_rows)
             res["CLR_TP"] += num_matches
-            res["CLR_FN"] += len(gt_ids_t) - num_matches
-            res["CLR_FP"] += len(pred_ids_t) - num_matches
+            res["FN"] += len(gt_ids_t) - num_matches
+            res["FP"] += len(pred_ids_t) - num_matches
 
             if num_matches > 0:
                 # MOTP sum uses the raw similarity score (without bonus)
@@ -409,6 +409,7 @@ class CLEARMetric(TrackingMetric):
         valid_sequences = 0
         for seq_res in per_sequence_results:
             if isinstance(seq_res, dict):
+                # Ensure all expected summed fields are present in seq_res, default to 0
                 valid_sequences += 1
                 for field in self.summed_fields:
                     aggregated_counts[field] += seq_res.get(field, 0.0)
@@ -425,11 +426,23 @@ class CLEARMetric(TrackingMetric):
         final_aggregated_metrics = self._compute_final_fields(aggregated_counts)
 
         # Ensure return type matches protocol (float or str)
+        # Start with the calculated float fields (like MOTA, MOTP, Recall, etc.)
         result_dict: Dict[str, Union[float, str]] = {
-            k: v for k, v in final_aggregated_metrics.items()
+            k: v
+            for k, v in final_aggregated_metrics.items()
+            if k in self.float_fields # Only take the final calculated float metrics
         }
         # Add back the summed integer fields as floats
         for field in self.integer_fields:
             result_dict[field] = aggregated_counts.get(field, 0.0)
+
+        # Explicitly add the summed MOTP_sum as well
+        result_dict["MOTP_sum"] = aggregated_counts.get("MOTP_sum", 0.0)
+
+        # Ensure all expected fields are present, defaulting to 0.0 if somehow missed
+        for field in self.fields:
+             result_dict.setdefault(field, 0.0)
+        result_dict.setdefault("MOTP_sum", 0.0)
+
 
         return result_dict
