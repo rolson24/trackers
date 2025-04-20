@@ -262,8 +262,11 @@ class CLEARMetric(TrackingMetric):
             ]  # Shape (num_gt, 1)
             # Boolean matrix (num_gt, num_pred): True where pred ID matches
             # GT's previous timestep ID
-            matches_prev_step = (current_timestep_pred_ids == gt_prev_timestep_ids) & (
-                ~np.isnan(gt_prev_timestep_ids)
+            # matches_prev_step = (current_timestep_pred_ids == gt_prev_timestep_ids) & (
+            #     np.logical_not(np.isnan(gt_prev_timestep_ids))
+            # )
+            matches_prev_step = (
+                current_timestep_pred_ids == gt_prev_timestep_ids
             )
             score_mat = (
                 matches_prev_step * continuity_bonus
