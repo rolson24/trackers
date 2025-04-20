@@ -372,7 +372,7 @@ def _preprocess_mot_sequence(
     gt_dets: sv.Detections,
     pred_dets: sv.Detections,
     iou_threshold: float = 0.5,
-    remove_distractor_matches: bool = True, # Add argument
+    remove_distractor_matches: bool = True,  # Add argument
 ) -> Tuple[sv.Detections, sv.Detections]:
     """
     Applies MOT specific preprocessing based on TrackEval logic.
@@ -414,10 +414,10 @@ def _preprocess_mot_sequence(
         gt_dets_t = gt_dets[gt_dets.data["frame_idx"] == frame_idx]
         pred_dets_t = pred_dets[pred_dets.data["frame_idx"] == frame_idx]
 
-        pred_dets_t_filtered = pred_dets_t # Start with original predictions
+        pred_dets_t_filtered = pred_dets_t  # Start with original predictions
 
         # --- TrackEval Preprocessing Step 1 & 2: Optionally remove tracker dets matching distractor GTs ---
-        if remove_distractor_matches: # Check the flag
+        if remove_distractor_matches:  # Check the flag
             to_remove_tracker_indices = np.array([], dtype=int)
             if len(gt_dets_t) > 0 and len(pred_dets_t) > 0:
                 # Match all preds against all GTs for this frame
@@ -491,7 +491,7 @@ def _evaluate_single_sequence(
     dataset: Dataset,
     metrics_to_compute: Dict[str, TrackingMetric],
     placeholder_metrics: List[str],
-    preprocess_remove_distractor_matches: bool = True, # Add argument
+    preprocess_remove_distractor_matches: bool = True,  # Add argument
 ) -> Dict[str, Dict[str, Union[float, str]]]:
     """
     Evaluates tracking metrics for a single sequence.
@@ -547,7 +547,7 @@ def _evaluate_single_sequence(
                 gt_data_raw,
                 seq_tracks,
                 iou_threshold=0.5,
-                remove_distractor_matches=preprocess_remove_distractor_matches, # Pass down
+                remove_distractor_matches=preprocess_remove_distractor_matches,  # Pass down
             )
             print(
                 f"Preprocessing complete. GT: {len(gt_data_raw)} -> {len(gt_data)}, Preds: {len(seq_tracks)} -> {len(seq_tracks_processed)}"
@@ -698,7 +698,7 @@ def evaluate_tracks(
     tracks: Optional[Dict[str, sv.Detections]] = None,
     tracks_path: Optional[Union[str, Path]] = None,
     metrics: List[str] = ["HOTA", "CLEAR", "Count"],
-    preprocess_remove_distractor_matches: bool = True, # Add argument
+    preprocess_remove_distractor_matches: bool = True,  # Add argument
 ) -> Dict[str, Any]:
     """
     Evaluates tracking results against ground truth using specified metrics.
@@ -779,7 +779,7 @@ def evaluate_tracks(
             dataset,
             metrics_to_compute,
             placeholder_metrics,
-            preprocess_remove_distractor_matches=preprocess_remove_distractor_matches, # Pass down
+            preprocess_remove_distractor_matches=preprocess_remove_distractor_matches,  # Pass down
         )
 
         results["per_sequence"][seq_name] = seq_results_for_this_seq
@@ -862,7 +862,7 @@ def evaluate_tracker(
         dataset=dataset,
         tracks=tracks,  # Pass the Dict[str, sv.Detections]
         metrics=metrics,
-        preprocess_remove_distractor_matches=preprocess_remove_distractor_matches, # Pass down
+        preprocess_remove_distractor_matches=preprocess_remove_distractor_matches,  # Pass down
     )
 
     return results
@@ -919,7 +919,7 @@ if __name__ == "__main__":
             metrics=["Count", "HOTA", "CLEAR"],
             cache_tracks=True,
             cache_dir="./cached_tracks_sv",
-            preprocess_remove_distractor_matches=True, # Explicitly True (default)
+            preprocess_remove_distractor_matches=True,  # Explicitly True (default)
         )
         print("\n--- Evaluation Results (Default Preprocessing) ---")
         print(json.dumps(results_default, indent=2))
@@ -931,9 +931,9 @@ if __name__ == "__main__":
             detection_source=mot_dataset,
             tracker_source=tracker,
             metrics=["Count", "HOTA", "CLEAR"],
-            cache_tracks=False, # Don't overwrite cache for this run
+            cache_tracks=False,  # Don't overwrite cache for this run
             # cache_dir="./cached_tracks_sv_keep", # Optional: different cache
-            preprocess_remove_distractor_matches=False, # Set to False
+            preprocess_remove_distractor_matches=False,  # Set to False
         )
         print("\n--- Evaluation Results (Keep Distractor Matches) ---")
         print(json.dumps(results_keep, indent=2))
