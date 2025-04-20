@@ -1,7 +1,7 @@
 import json
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
@@ -273,57 +273,67 @@ def _relabel_ids(detections: sv.Detections) -> sv.Detections:
         return detections
 
     unique_ids = np.unique(detections.tracker_id)
-    if len(unique_ids) == 0: # Handle case where all IDs might be NaN or similar if preprocessing failed
+    if (
+        len(unique_ids) == 0
+    ):  # Handle case where all IDs might be NaN or similar if preprocessing failed
         return detections
 
     max_id = np.max(unique_ids)
     # Handle potential non-integer IDs if they slip through, though they shouldn't
     if not np.issubdtype(type(max_id), np.integer):
-         print(f"Warning: Non-integer max unique ID found during relabeling: {max_id}. Skipping relabel.")
-         return detections # Or handle more robustly
+        print(
+            f"Warning: Non-integer max unique ID found during relabeling: {max_id}. Skipping relabel."
+        )
+        return detections  # Or handle more robustly
 
     # Ensure map size is sufficient, handle negative IDs if they exist by shifting
     min_id = np.min(unique_ids)
     offset = 0
     if min_id < 0:
-        print(f"Warning: Negative tracker IDs found ({min_id}). Shifting IDs for relabeling.")
-        offset = -min_id # Shift everything to be non-negative
+        print(
+            f"Warning: Negative tracker IDs found ({min_id}). Shifting IDs for relabeling."
+        )
+        offset = -min_id  # Shift everything to be non-negative
         max_id += offset
 
-    if np.isnan(max_id): # Check if max_id became NaN (e.g., only NaN IDs)
+    if np.isnan(max_id):  # Check if max_id became NaN (e.g., only NaN IDs)
         print("Warning: Max ID is NaN during relabeling. Skipping.")
         return detections
 
-    id_map = np.full(int(max_id) + 1, fill_value=-1, dtype=int) # Use -1 for unmapped
+    id_map = np.full(int(max_id) + 1, fill_value=-1, dtype=int)  # Use -1 for unmapped
     new_id_counter = 0
     new_ids = np.full_like(detections.tracker_id, fill_value=-1, dtype=int)
 
-    valid_mask = ~np.isnan(detections.tracker_id) # Ignore NaN IDs
+    valid_mask = ~np.isnan(detections.tracker_id)  # Ignore NaN IDs
     original_ids_valid = detections.tracker_id[valid_mask].astype(int) + offset
 
     for i, original_id in enumerate(original_ids_valid):
-        if id_map[original_id] == -1: # First time seeing this ID
+        if id_map[original_id] == -1:  # First time seeing this ID
             id_map[original_id] = new_id_counter
-            new_ids[np.where(valid_mask)[0][i]] = new_id_counter # Assign new ID at the correct position
+            new_ids[np.where(valid_mask)[0][i]] = (
+                new_id_counter  # Assign new ID at the correct position
+            )
             new_id_counter += 1
         else:
-            new_ids[np.where(valid_mask)[0][i]] = id_map[original_id] # Assign existing new ID
+            new_ids[np.where(valid_mask)[0][i]] = id_map[
+                original_id
+            ]  # Assign existing new ID
 
     # Handle potential -1s if any IDs were invalid/NaN
     if np.any(new_ids == -1):
-         print("Warning: Some tracker IDs could not be relabeled (were potentially NaN or invalid).")
-         # Option: Keep original IDs for these? Or assign a special ID?
-         # For now, we keep -1, but CLEAR might fail.
-         # A better approach might be to filter these detections earlier.
+        print(
+            "Warning: Some tracker IDs could not be relabeled (were potentially NaN or invalid)."
+        )
+        # Option: Keep original IDs for these? Or assign a special ID?
+        # For now, we keep -1, but CLEAR might fail.
+        # A better approach might be to filter these detections earlier.
 
     detections.tracker_id = new_ids
     return detections
 
 
 def _preprocess_mot_sequence(
-    gt_dets: sv.Detections,
-    pred_dets: sv.Detections,
-    iou_threshold: float = 0.5
+    gt_dets: sv.Detections, pred_dets: sv.Detections, iou_threshold: float = 0.5
 ) -> Tuple[sv.Detections, sv.Detections]:
     """
     Applies MOT specific preprocessing based on TrackEval logic.
@@ -335,14 +345,25 @@ def _preprocess_mot_sequence(
     pred_out_list = []
 
     # --- Input Validation ---
-    if "frame_idx" not in gt_dets.data or gt_dets.tracker_id is None or gt_dets.class_id is None or gt_dets.confidence is None:
-        print("Warning: GT detections missing required fields (frame_idx, tracker_id, class_id, confidence) for MOT preprocessing. Skipping.")
+    if (
+        "frame_idx" not in gt_dets.data
+        or gt_dets.tracker_id is None
+        or gt_dets.class_id is None
+        or gt_dets.confidence is None
+    ):
+        print(
+            "Warning: GT detections missing required fields (frame_idx, tracker_id, class_id, confidence) for MOT preprocessing. Skipping."
+        )
         return gt_dets, pred_dets
     if "frame_idx" not in pred_dets.data or pred_dets.tracker_id is None:
-         print("Warning: Prediction detections missing required fields (frame_idx, tracker_id) for MOT preprocessing. Skipping.")
-         return gt_dets, pred_dets
+        print(
+            "Warning: Prediction detections missing required fields (frame_idx, tracker_id) for MOT preprocessing. Skipping."
+        )
+        return gt_dets, pred_dets
 
-    all_frame_indices = sorted(list(set(gt_dets.data["frame_idx"]).union(set(pred_dets.data["frame_idx"]))))
+    all_frame_indices = sorted(
+        list(set(gt_dets.data["frame_idx"]).union(set(pred_dets.data["frame_idx"])))
+    )
 
     for frame_idx in all_frame_indices:
         gt_dets_t = gt_dets[gt_dets.data["frame_idx"] == frame_idx]
@@ -352,12 +373,18 @@ def _preprocess_mot_sequence(
         to_remove_tracker_indices = np.array([], dtype=int)
         if len(gt_dets_t) > 0 and len(pred_dets_t) > 0:
             # Match all preds against all GTs for this frame
-            similarity = sv.detection.utils.box_iou_batch(gt_dets_t.xyxy, pred_dets_t.xyxy)
+            similarity = sv.detection.utils.box_iou_batch(
+                gt_dets_t.xyxy, pred_dets_t.xyxy
+            )
             match_scores = similarity.copy()
-            match_scores[match_scores < iou_threshold - np.finfo('float').eps] = 0
+            match_scores[match_scores < iou_threshold - np.finfo("float").eps] = 0
 
-            match_rows, match_cols = linear_sum_assignment(-match_scores) # Maximize score
-            valid_match_mask = match_scores[match_rows, match_cols] > 0 + np.finfo('float').eps
+            match_rows, match_cols = linear_sum_assignment(
+                -match_scores
+            )  # Maximize score
+            valid_match_mask = (
+                match_scores[match_rows, match_cols] > 0 + np.finfo("float").eps
+            )
             match_rows = match_rows[valid_match_mask]
             match_cols = match_cols[valid_match_mask]
 
@@ -368,11 +395,11 @@ def _preprocess_mot_sequence(
 
         # Filter tracker detections for the frame
         if len(to_remove_tracker_indices) > 0:
-             pred_keep_mask = np.ones(len(pred_dets_t), dtype=bool)
-             pred_keep_mask[to_remove_tracker_indices] = False
-             pred_dets_t_filtered = pred_dets_t[pred_keep_mask]
+            pred_keep_mask = np.ones(len(pred_dets_t), dtype=bool)
+            pred_keep_mask[to_remove_tracker_indices] = False
+            pred_dets_t_filtered = pred_dets_t[pred_keep_mask]
         else:
-             pred_dets_t_filtered = pred_dets_t
+            pred_dets_t_filtered = pred_dets_t
 
         # --- TrackEval Preprocessing Step 4: Remove unwanted GT dets ---
         # Keep only pedestrian class (ID 1) and remove zero_marked
@@ -380,7 +407,9 @@ def _preprocess_mot_sequence(
         # gt_is_zero_marked = (gt_dets_t.confidence < ZERO_MARKED_CONF_THRESHOLD) | np.isin(gt_dets_t.class_id, MOT_IGNORE_IDS)
         # Let's use TrackEval's logic more directly: zero_marked is column 6 (confidence in MOT format) == 0
         # Assuming confidence field holds this value from parsing gt.txt
-        gt_is_zero_marked = gt_dets_t.confidence < ZERO_MARKED_CONF_THRESHOLD # Use threshold as proxy
+        gt_is_zero_marked = (
+            gt_dets_t.confidence < ZERO_MARKED_CONF_THRESHOLD
+        )  # Use threshold as proxy
 
         gt_keep_mask = gt_is_pedestrian & ~gt_is_zero_marked
         gt_dets_t_filtered = gt_dets_t[gt_keep_mask]
@@ -392,8 +421,12 @@ def _preprocess_mot_sequence(
             pred_out_list.append(pred_dets_t_filtered)
 
     # Merge filtered detections across all frames
-    gt_processed = sv.Detections.merge(gt_out_list) if gt_out_list else sv.Detections.empty()
-    pred_processed = sv.Detections.merge(pred_out_list) if pred_out_list else sv.Detections.empty()
+    gt_processed = (
+        sv.Detections.merge(gt_out_list) if gt_out_list else sv.Detections.empty()
+    )
+    pred_processed = (
+        sv.Detections.merge(pred_out_list) if pred_out_list else sv.Detections.empty()
+    )
 
     # --- TrackEval Preprocessing Step 6: Relabel IDs ---
     gt_processed = _relabel_ids(gt_processed)
@@ -432,7 +465,7 @@ def _evaluate_single_sequence(
     print(f"\n--- Evaluating sequence: {seq_name} ---")
 
     # Load ground truth
-    gt_data_raw = dataset.load_ground_truth(seq_name) # Load raw GT
+    gt_data_raw = dataset.load_ground_truth(seq_name)  # Load raw GT
     if gt_data_raw is None:
         print(f"Warning: No ground truth for sequence {seq_name}, skipping evaluation")
         seq_results_error = {
@@ -450,16 +483,24 @@ def _evaluate_single_sequence(
     # --- Apply MOT Preprocessing ---
     # Check if the metric is CLEAR or if the dataset is MOTChallenge based
     # This check might need refinement depending on how datasets/metrics are identified
-    is_mot_eval = isinstance(dataset, MOTChallengeDataset) and any(m.name == 'CLEAR' for m in metrics_to_compute.values())
+    is_mot_eval = isinstance(dataset, MOTChallengeDataset) and any(
+        m.name == "CLEAR" for m in metrics_to_compute.values()
+    )
 
     if is_mot_eval:
         print(f"Applying MOT preprocessing for sequence: {seq_name}")
         try:
             # Assuming default IoU threshold of 0.5 for preprocessing matching step
-            gt_data, seq_tracks_processed = _preprocess_mot_sequence(gt_data_raw, seq_tracks, iou_threshold=0.5)
-            print(f"Preprocessing complete. GT: {len(gt_data_raw)} -> {len(gt_data)}, Preds: {len(seq_tracks)} -> {len(seq_tracks_processed)}")
+            gt_data, seq_tracks_processed = _preprocess_mot_sequence(
+                gt_data_raw, seq_tracks, iou_threshold=0.5
+            )
+            print(
+                f"Preprocessing complete. GT: {len(gt_data_raw)} -> {len(gt_data)}, Preds: {len(seq_tracks)} -> {len(seq_tracks_processed)}"
+            )
         except Exception as e:
-            print(f"Error during MOT preprocessing for {seq_name}: {e}. Skipping preprocessing.")
+            print(
+                f"Error during MOT preprocessing for {seq_name}: {e}. Skipping preprocessing."
+            )
             # Fallback to using raw data? Or return error? For now, fallback.
             gt_data = gt_data_raw
             seq_tracks_processed = seq_tracks
@@ -493,8 +534,8 @@ def _evaluate_single_sequence(
         try:
             # Pass the PROCESSED gt_data and seq_tracks_processed
             metric_output = metric_instance.compute(
-                ground_truth=gt_data, # Use processed GT
-                predictions=seq_tracks_processed, # Use processed predictions
+                ground_truth=gt_data,  # Use processed GT
+                predictions=seq_tracks_processed,  # Use processed predictions
                 sequence_info=seq_info,
             )
             if not isinstance(metric_output, dict):
