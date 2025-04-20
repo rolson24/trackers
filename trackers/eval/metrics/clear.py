@@ -302,16 +302,16 @@ class CLEARMetric(TrackingMetric):
                 # IDSW occurs if:
                 # 1. The GT ID *was* matched before (prev_tracker_id is not NaN)
                 # 2. The current matched tracker ID is *different* from the previous one
-                if np.any(np.logical_not(np.isnan(prev_matched_tracker_ids))):
-                    print(f"Previous matched tracker IDs: {prev_matched_tracker_ids}")
-                    print(f"Current matched tracker IDs: {matched_tracker_ids}")
-                    print(f"Matched GT indices: {matched_gt_indices}")
+                # if np.any(np.logical_not(np.isnan(prev_matched_tracker_ids))):
+                #     print(f"Previous matched tracker IDs: {prev_matched_tracker_ids}")
+                #     print(f"Current matched tracker IDs: {matched_tracker_ids}")
+                #     print(f"Matched GT indices: {matched_gt_indices}")
 
                 is_idsw = (np.logical_not(np.isnan(prev_matched_tracker_ids))) & (
                     matched_tracker_ids != prev_matched_tracker_ids
                 )
-                if np.any(is_idsw):
-                    print(f"IDSW detected for GT IDs: {matched_gt_indices[is_idsw]}")
+                # if np.any(is_idsw):
+                #     print(f"IDSW detected for GT IDs: {matched_gt_indices[is_idsw]}")
                 res["IDSW"] += np.sum(is_idsw)
 
                 # --- Update Tracking State for Next Frame ---
