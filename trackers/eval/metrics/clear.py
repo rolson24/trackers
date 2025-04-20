@@ -281,7 +281,6 @@ class CLEARMetric(TrackingMetric):
             # If all scores are 0 after thresholding, no valid assignment is possible
             # (We use score_mat directly now, not cost_matrix initialized to -inf)
 
-
             # if not np.any(score_mat != 0):  # Check if any potential match exists
             #     # All GT are FN, all Pred are FP for this frame
             #     # print(f"Score matrix has no positive entries for
