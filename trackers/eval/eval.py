@@ -19,16 +19,11 @@ from trackers.sort_tracker import SORTTracker
 
 # --- Define MOT Constants at Module Level ---
 MOT_PEDESTRIAN_ID = 1
-# Adjusted based on common MOT classes, ensure these match your dataset's conventions
-MOT_DISTRACTOR_IDS = [
-    2,
-    7,
-    8,
-    12,
-]  # person_on_vehicle, static_person, distractor, reflection
-MOT_IGNORE_IDS = [2, 7, 8, 12, 13]  # Includes crowd (13) for ignore, adjust as needed
-# Rule for zero_marked GTs (often confidence=0 in gt.txt, or specific ignore classes)
-ZERO_MARKED_CONF_THRESHOLD = 0.01  # Proxy based on confidence column in gt.txt
+MOT_DISTRACTOR_IDS = [2, 7, 8, 12] # person_on_vehicle, static_person, distractor, reflection
+MOT_IGNORE_IDS = [2, 7, 8, 12, 13] # Includes crowd (13) for ignore, adjust as needed
+# Rule for zero_marked GTs: Check if confidence (column 7 in gt.txt) is effectively zero
+# Use a small epsilon for float comparison instead of a larger threshold
+ZERO_MARKED_EPSILON = 1e-5
 # --- End MOT Constants ---
 
 
@@ -438,16 +433,19 @@ def _preprocess_mot_sequence(
             pred_dets_t_filtered = pred_dets_t
 
         # --- TrackEval Preprocessing Step 4: Remove unwanted GT dets ---
-        # Keep only pedestrian class (ID 1) and remove zero_marked
         gt_is_pedestrian = gt_dets_t.class_id == MOT_PEDESTRIAN_ID
-        # gt_is_zero_marked = (gt_dets_t.confidence < ZERO_MARKED_CONF_THRESHOLD) | np.isin(gt_dets_t.class_id, MOT_IGNORE_IDS)
-        # Let's use TrackEval's logic more directly: zero_marked is column 6 (confidence in MOT format) == 0
-        # Assuming confidence field holds this value from parsing gt.txt
-        gt_is_zero_marked = (
-            gt_dets_t.confidence < ZERO_MARKED_CONF_THRESHOLD
-        )  # Use threshold as proxy
 
-        gt_keep_mask = gt_is_pedestrian & ~gt_is_zero_marked
+        # Refined check for zero_marked: Check if confidence is very close to 0
+        # This assumes the 'confidence' field holds the value from column 7 of gt.txt
+        gt_is_effectively_zero = np.abs(gt_dets_t.confidence) < ZERO_MARKED_EPSILON
+        # Also consider explicit ignore classes if needed (TrackEval sometimes does this separately)
+        # gt_is_ignore_class = np.isin(gt_dets_t.class_id, MOT_IGNORE_IDS) # Optional stricter ignore
+
+        # Keep GT if it IS a pedestrian AND it is NOT effectively zero-marked
+        gt_keep_mask = gt_is_pedestrian & ~gt_is_effectively_zero
+        # If also excluding ignore classes:
+        # gt_keep_mask = gt_is_pedestrian & ~gt_is_effectively_zero & ~gt_is_ignore_class
+
         gt_dets_t_filtered = gt_dets_t[gt_keep_mask]
 
         # Append filtered detections for the frame

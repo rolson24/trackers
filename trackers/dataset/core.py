@@ -165,10 +165,14 @@ class MOTChallengeDataset(Dataset):
                         y = float(parts[3])
                         width = float(parts[4])
                         height = float(parts[5])
+                        # --- Ensure 7th column (index 6) is assigned to confidence ---
+                        # This value often represents visibility/ignore flag in gt.txt (0=ignore)
+                        # or detection confidence in det.txt
                         confidence = float(parts[6])
+                        # --- End Verification ---
                         class_id = int(parts[7]) if len(parts) > 7 else -1
 
-                        # Filter by confidence if specified
+                        # Filter by confidence if specified (more relevant for det.txt)
                         if min_confidence is not None and confidence < min_confidence:
                             continue
 
@@ -177,7 +181,7 @@ class MOTChallengeDataset(Dataset):
                             "frame_idx": frame_idx,
                             "obj_id": obj_id,
                             "xyxy": [x, y, x + width, y + height],
-                            "confidence": confidence,
+                            "confidence": confidence, # Correctly assigned
                             "class_id": class_id,
                         }
 
