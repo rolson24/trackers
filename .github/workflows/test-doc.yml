@@ -29,9 +29,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: 🏗️ Install dependencies
-        run: |
-          uv pip install -r pyproject.toml --group docs
-
+        run: uv pip install -r pyproject.toml --group docs --python-version ${{ matrix.python-version }}
 
       - name: 🧪 Test Docs Build
         run: uv run mkdocs build --verbose

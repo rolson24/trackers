@@ -40,7 +40,7 @@ With a modular design, `trackers` lets you combine object detectors from differe
 ```python
 import supervision as sv
 from rfdetr import RFDETRBase
-from trackers.sort_tracker import SORTTracker
+from trackers import SORTTracker
 
 model = RFDETRBase()
 tracker = SORTTracker()

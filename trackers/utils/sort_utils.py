@@ -1,13 +1,16 @@
 from copy import deepcopy
-from typing import List, Sequence, TypeVar
+from typing import List, Sequence, TypeVar, Union
 
 import numpy as np
 import supervision as sv
 from supervision.detection.utils import box_iou_batch
 
+from trackers.core.deepsort.kalman_box_tracker import DeepSORTKalmanBoxTracker
 from trackers.core.sort.kalman_box_tracker import SORTKalmanBoxTracker
 
-KalmanBoxTrackerType = TypeVar("KalmanBoxTrackerType", bound=SORTKalmanBoxTracker)
+KalmanBoxTrackerType = TypeVar(
+    "KalmanBoxTrackerType", bound=Union[SORTKalmanBoxTracker, DeepSORTKalmanBoxTracker]
+)
 
 
 def get_alive_trackers(
@@ -42,7 +45,7 @@ def get_alive_trackers(
 
 
 def get_iou_matrix(
-    trackers: Sequence[SORTKalmanBoxTracker], detection_boxes: np.ndarray
+    trackers: Sequence[KalmanBoxTrackerType], detection_boxes: np.ndarray
 ) -> np.ndarray:
     """
     Build IOU cost matrix between detections and predicted bounding boxes
@@ -68,7 +71,7 @@ def get_iou_matrix(
 
 
 def update_detections_with_track_ids(
-    trackers: Sequence[SORTKalmanBoxTracker],
+    trackers: Sequence[KalmanBoxTrackerType],
     detections: sv.Detections,
     detection_boxes: np.ndarray,
     minimum_iou_threshold: float,
