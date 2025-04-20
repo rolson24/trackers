@@ -95,7 +95,6 @@ class CLEARMetric(TrackingMetric):
         )
         res["FP_per_frame"] = res["FP"] / np.maximum(1.0, res["CLR_Frames"])
 
-
         # Ensure all expected float fields exist, even if calculated as 0
         float_fields = [
             "MOTA",
