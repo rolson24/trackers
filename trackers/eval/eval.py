@@ -18,6 +18,16 @@ from trackers.eval.utils.save_tracks import load_tracks_from_disk, save_tracks
 from trackers.sort_tracker import SORTTracker
 
 
+# --- Define MOT Constants at Module Level ---
+MOT_PEDESTRIAN_ID = 1
+# Adjusted based on common MOT classes, ensure these match your dataset's conventions
+MOT_DISTRACTOR_IDS = [2, 7, 8, 12] # person_on_vehicle, static_person, distractor, reflection
+MOT_IGNORE_IDS = [2, 7, 8, 12, 13] # Includes crowd (13) for ignore, adjust as needed
+# Rule for zero_marked GTs (often confidence=0 in gt.txt, or specific ignore classes)
+ZERO_MARKED_CONF_THRESHOLD = 0.01 # Proxy based on confidence column in gt.txt
+# --- End MOT Constants ---
+
+
 def _add_frame_metadata_to_detections(
     detections: sv.Detections, frame_idx: int, image_path: str
 ) -> sv.Detections:
