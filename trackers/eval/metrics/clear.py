@@ -63,10 +63,17 @@ class CLEARMetric(TrackingMetric):
         res["PTR"] = res["PT"] / np.maximum(1.0, num_gt_ids)
         res["CLR_Re"] = res["CLR_TP"] / np.maximum(1.0, num_gt_dets)  # Recall
         res["CLR_Pr"] = res["CLR_TP"] / np.maximum(1.0, num_tracker_dets)  # Precision
-        res["MODA"] = (res["CLR_TP"] - res["CLR_FP"]) / np.maximum(1.0, num_gt_dets)
-        res["MOTA"] = (res["CLR_TP"] - res["CLR_FP"] - res["IDSW"]) / np.maximum(
-            1.0, num_gt_dets
-        )
+
+        #         res['MODA'] = (res['CLR_TP'] - res['CLR_FP']) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FN'])
+        # res['MOTA'] = (res['CLR_TP'] - res['CLR_FP'] - res['IDSW']) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FN'])
+        res['MODA'] = (res['CLR_TP'] - res['CLR_FP']) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FN'])
+        res['MOTA'] = (res['CLR_TP'] - res['CLR_FP'] - res['IDSW']) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FN'])
+
+
+        # res["MODA"] = (res["CLR_TP"] - res["CLR_FP"]) / np.maximum(1.0, num_gt_dets)
+        # res["MOTA"] = (res["CLR_TP"] - res["CLR_FP"] - res["IDSW"]) / np.maximum(
+        #     1.0, num_gt_dets
+        # )
         res["MOTP"] = res["MOTP_sum"] / np.maximum(1.0, res["CLR_TP"])
         # Note: sMOTA and MOTAL are sometimes defined, but MOTA/MOTP are primary
         res["CLR_F1"] = res["CLR_TP"] / np.maximum(
