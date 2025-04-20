@@ -256,7 +256,7 @@ def generate_tracks(
         # --- End merge ---
 
         # Only add sequence if processing didn't break early and tracks exist
-        if merged_detections is not None and len(merged_detections) > 0:
+        if merged_detections is not None and len(erged_detections) > 0:
             all_tracks[seq_name] = merged_detections
 
             # Save to disk if requested
@@ -364,13 +364,22 @@ def _relabel_ids(detections: sv.Detections) -> sv.Detections:
 
 
 def _preprocess_mot_sequence(
-    gt_dets: sv.Detections, pred_dets: sv.Detections, iou_threshold: float = 0.5
+    gt_dets: sv.Detections,
+    pred_dets: sv.Detections,
+    iou_threshold: float = 0.5,
+    remove_distractor_matches: bool = True, # Add argument
 ) -> Tuple[sv.Detections, sv.Detections]:
     """
     Applies MOT specific preprocessing based on TrackEval logic.
-    Removes tracker detections matching GT distractors.
+    Optionally removes tracker detections matching GT distractors.
     Removes GT distractors and zero-marked GTs.
     Relabels IDs.
+
+    Args:
+        gt_dets: Ground truth detections.
+        pred_dets: Prediction detections.
+        iou_threshold: IoU threshold for matching.
+        remove_distractor_matches: If True, remove predictions matched to GT distractors.
     """
     gt_out_list = []
     pred_out_list = []
@@ -400,37 +409,39 @@ def _preprocess_mot_sequence(
         gt_dets_t = gt_dets[gt_dets.data["frame_idx"] == frame_idx]
         pred_dets_t = pred_dets[pred_dets.data["frame_idx"] == frame_idx]
 
-        # --- TrackEval Preprocessing Step 1 & 2: Remove tracker dets matching distractor GTs ---
-        to_remove_tracker_indices = np.array([], dtype=int)
-        if len(gt_dets_t) > 0 and len(pred_dets_t) > 0:
-            # Match all preds against all GTs for this frame
-            similarity = sv.detection.utils.box_iou_batch(
-                gt_dets_t.xyxy, pred_dets_t.xyxy
-            )
-            match_scores = similarity.copy()
-            match_scores[match_scores < iou_threshold - np.finfo("float").eps] = 0
+        pred_dets_t_filtered = pred_dets_t # Start with original predictions
 
-            match_rows, match_cols = linear_sum_assignment(
-                -match_scores
-            )  # Maximize score
-            valid_match_mask = (
-                match_scores[match_rows, match_cols] > 0 + np.finfo("float").eps
-            )
-            match_rows = match_rows[valid_match_mask]
-            match_cols = match_cols[valid_match_mask]
+        # --- TrackEval Preprocessing Step 1 & 2: Optionally remove tracker dets matching distractor GTs ---
+        if remove_distractor_matches: # Check the flag
+            to_remove_tracker_indices = np.array([], dtype=int)
+            if len(gt_dets_t) > 0 and len(pred_dets_t) > 0:
+                # Match all preds against all GTs for this frame
+                similarity = sv.detection.utils.box_iou_batch(
+                    gt_dets_t.xyxy, pred_dets_t.xyxy
+                )
+                match_scores = similarity.copy()
+                match_scores[match_scores < iou_threshold - np.finfo("float").eps] = 0
 
-            # Identify matches where GT is a distractor
-            matched_gt_classes = gt_dets_t.class_id[match_rows]
-            is_distractor_match = np.isin(matched_gt_classes, MOT_DISTRACTOR_IDS)
-            to_remove_tracker_indices = match_cols[is_distractor_match]
+                match_rows, match_cols = linear_sum_assignment(
+                    -match_scores
+                )  # Maximize score
+                valid_match_mask = (
+                    match_scores[match_rows, match_cols] > 0 + np.finfo("float").eps
+                )
+                match_rows = match_rows[valid_match_mask]
+                match_cols = match_cols[valid_match_mask]
 
-        # Filter tracker detections for the frame
-        if len(to_remove_tracker_indices) > 0:
-            pred_keep_mask = np.ones(len(pred_dets_t), dtype=bool)
-            pred_keep_mask[to_remove_tracker_indices] = False
-            pred_dets_t_filtered = pred_dets_t[pred_keep_mask]
-        else:
-            pred_dets_t_filtered = pred_dets_t
+                # Identify matches where GT is a distractor
+                matched_gt_classes = gt_dets_t.class_id[match_rows]
+                is_distractor_match = np.isin(matched_gt_classes, MOT_DISTRACTOR_IDS)
+                to_remove_tracker_indices = match_cols[is_distractor_match]
+
+            # Filter tracker detections for the frame
+            if len(to_remove_tracker_indices) > 0:
+                pred_keep_mask = np.ones(len(pred_dets_t), dtype=bool)
+                pred_keep_mask[to_remove_tracker_indices] = False
+                pred_dets_t_filtered = pred_dets_t[pred_keep_mask]
+            # else: pred_dets_t_filtered remains pred_dets_t
 
         # --- TrackEval Preprocessing Step 4: Remove unwanted GT dets ---
         gt_is_pedestrian = gt_dets_t.class_id == MOT_PEDESTRIAN_ID
@@ -475,6 +486,7 @@ def _evaluate_single_sequence(
     dataset: Dataset,
     metrics_to_compute: Dict[str, TrackingMetric],
     placeholder_metrics: List[str],
+    preprocess_remove_distractor_matches: bool = True, # Add argument
 ) -> Dict[str, Dict[str, Union[float, str]]]:
     """
     Evaluates tracking metrics for a single sequence.
@@ -490,6 +502,7 @@ def _evaluate_single_sequence(
         metrics_to_compute: A dictionary mapping metric names to their instantiated
                             TrackingMetric objects.
         placeholder_metrics: A list of metric names requested but not implemented.
+        preprocess_remove_distractor_matches: Passed to _preprocess_mot_sequence if applicable.
 
     Returns:
         A dictionary where keys are metric names (including placeholders) and
@@ -526,7 +539,10 @@ def _evaluate_single_sequence(
         try:
             # Assuming default IoU threshold of 0.5 for preprocessing matching step
             gt_data, seq_tracks_processed = _preprocess_mot_sequence(
-                gt_data_raw, seq_tracks, iou_threshold=0.5
+                gt_data_raw,
+                seq_tracks,
+                iou_threshold=0.5,
+                remove_distractor_matches=preprocess_remove_distractor_matches, # Pass down
             )
             print(
                 f"Preprocessing complete. GT: {len(gt_data_raw)} -> {len(gt_data)}, Preds: {len(seq_tracks)} -> {len(seq_tracks_processed)}"
@@ -677,6 +693,7 @@ def evaluate_tracks(
     tracks: Optional[Dict[str, sv.Detections]] = None,
     tracks_path: Optional[Union[str, Path]] = None,
     metrics: List[str] = ["HOTA", "CLEAR", "Count"],
+    preprocess_remove_distractor_matches: bool = True, # Add argument
 ) -> Dict[str, Any]:
     """
     Evaluates tracking results against ground truth using specified metrics.
@@ -694,6 +711,10 @@ def evaluate_tracks(
                      `save_tracks`). Used if `tracks` is None.
         metrics: A list of tracking metric names (case-insensitive) to compute
                  (e.g., ["Count", "HOTA", "CLEAR"]).
+        preprocess_remove_distractor_matches: If True (default), removes predictions
+                                              matched to GT distractors during MOT
+                                              preprocessing (mimics TrackEval default).
+                                              Set to False to keep these predictions.
 
     Returns:
         A dictionary containing evaluation results, structured as:
@@ -748,7 +769,12 @@ def evaluate_tracks(
 
     for seq_name, seq_tracks in tracks.items():
         seq_results_for_this_seq = _evaluate_single_sequence(
-            seq_name, seq_tracks, dataset, metrics_to_compute, placeholder_metrics
+            seq_name,
+            seq_tracks,
+            dataset,
+            metrics_to_compute,
+            placeholder_metrics,
+            preprocess_remove_distractor_matches=preprocess_remove_distractor_matches, # Pass down
         )
 
         results["per_sequence"][seq_name] = seq_results_for_this_seq
@@ -779,6 +805,8 @@ def evaluate_tracker(
     cache_dir: Optional[Union[str, Path]] = None,
     metrics: List[str] = ["HOTA", "CLEAR", "Count"],
     image_loader: Optional[Callable[[str], np.ndarray]] = None,
+    # Add the argument here as well to control it from the top-level call
+    preprocess_remove_distractor_matches: bool = True,
 ) -> Dict[str, Any]:
     """
     End-to-end tracker evaluation function.
@@ -806,6 +834,9 @@ def evaluate_tracker(
                  (e.g., ["Count", "HOTA", "CLEAR"]).
         image_loader: Optional custom image loading function (passed to
                       `generate_tracks`).
+        preprocess_remove_distractor_matches: If True (default), removes predictions
+                                              matched to GT distractors during MOT
+                                              preprocessing. Passed to evaluate_tracks.
 
     Returns:
         A dictionary containing the evaluation metrics, structured as returned by
@@ -826,6 +857,7 @@ def evaluate_tracker(
         dataset=dataset,
         tracks=tracks,  # Pass the Dict[str, sv.Detections]
         metrics=metrics,
+        preprocess_remove_distractor_matches=preprocess_remove_distractor_matches, # Pass down
     )
 
     return results
@@ -873,18 +905,33 @@ if __name__ == "__main__":
         # 3. Instantiate a tracker object
         tracker = SORTTracker()  # Use SORT tracker
 
-        # Run evaluation
-        print("\n--- Starting Evaluation ---")
-        results = evaluate_tracker(
+        # Run evaluation (with default preprocessing)
+        print("\n--- Starting Evaluation (Default Preprocessing) ---")
+        results_default = evaluate_tracker(
             dataset=mot_dataset,
-            detection_source=mot_dataset,  # Using detections from MOTChallengeDataset
+            detection_source=mot_dataset,
             tracker_source=tracker,
-            metrics=["Count", "HOTA", "CLEAR"],  # Specify desired metrics
-            cache_tracks=True,  # Example: cache the tracks
-            cache_dir="./cached_tracks_sv",  # Example cache directory
+            metrics=["Count", "HOTA", "CLEAR"],
+            cache_tracks=True,
+            cache_dir="./cached_tracks_sv",
+            preprocess_remove_distractor_matches=True, # Explicitly True (default)
         )
-        print("\n--- Evaluation Results ---")
-        print(json.dumps(results, indent=2))
+        print("\n--- Evaluation Results (Default Preprocessing) ---")
+        print(json.dumps(results_default, indent=2))
+
+        # Run evaluation (without removing distractor matches)
+        print("\n--- Starting Evaluation (Keep Distractor Matches) ---")
+        results_keep = evaluate_tracker(
+            dataset=mot_dataset,
+            detection_source=mot_dataset,
+            tracker_source=tracker,
+            metrics=["Count", "HOTA", "CLEAR"],
+            cache_tracks=False, # Don't overwrite cache for this run
+            # cache_dir="./cached_tracks_sv_keep", # Optional: different cache
+            preprocess_remove_distractor_matches=False, # Set to False
+        )
+        print("\n--- Evaluation Results (Keep Distractor Matches) ---")
+        print(json.dumps(results_keep, indent=2))
 
         # Example of evaluating from cached tracks
         print("\n--- Evaluating Cached Tracks ---")
