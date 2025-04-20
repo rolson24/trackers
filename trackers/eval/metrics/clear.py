@@ -62,7 +62,9 @@ class CLEARMetric(TrackingMetric):
         res["MLR"] = res["ML"] / np.maximum(1.0, num_gt_ids)
         res["PTR"] = res["PT"] / np.maximum(1.0, num_gt_ids)
         res["Recall"] = res["CLR_TP"] / np.maximum(1.0, num_gt_dets)  # Recall
-        res["Precision"] = res["CLR_TP"] / np.maximum(1.0, num_tracker_dets)  # Precision
+        res["Precision"] = res["CLR_TP"] / np.maximum(
+            1.0, num_tracker_dets
+        )  # Precision
 
         #         res['MODA'] = (res['CLR_TP'] - res['FP']) / np.maximum(1.0, res['CLR_TP'] + res['FN'])
         # res['MOTA'] = (res['CLR_TP'] - res['FP'] - res['IDSW']) / np.maximum(1.0, res['CLR_TP'] + res['FN'])
@@ -432,7 +434,7 @@ class CLEARMetric(TrackingMetric):
         result_dict: Dict[str, Union[float, str]] = {
             k: v
             for k, v in final_aggregated_metrics.items()
-            if k in self.float_fields # Only take the final calculated float metrics
+            if k in self.float_fields  # Only take the final calculated float metrics
         }
         # Add back the summed integer fields as floats
         for field in self.integer_fields:
@@ -443,8 +445,7 @@ class CLEARMetric(TrackingMetric):
 
         # Ensure all expected fields are present, defaulting to 0.0 if somehow missed
         for field in self.fields:
-             result_dict.setdefault(field, 0.0)
+            result_dict.setdefault(field, 0.0)
         result_dict.setdefault("MOTP_sum", 0.0)
-
 
         return result_dict
