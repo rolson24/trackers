@@ -337,7 +337,9 @@ class CLEARMetric(TrackingMetric):
 
                 # --- Update Tracking State for Next Frame ---
                 # Fragmentation: Increment if matched now but *not* in the previous step
-                was_not_matched_prev = np.logical_not(matched_in_prev_step[matched_gt_indices])
+                was_not_matched_prev = np.logical_not(
+                    matched_in_prev_step[matched_gt_indices]
+                )
                 gt_id_frag_count[matched_gt_indices] += was_not_matched_prev
 
                 # Update matched count for MT/ML/PT
