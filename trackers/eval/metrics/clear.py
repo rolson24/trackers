@@ -280,16 +280,18 @@ class CLEARMetric(TrackingMetric):
             # --- Check for infeasible cost matrix ---
             # If all scores are 0 after thresholding, no valid assignment is possible
             # (We use score_mat directly now, not cost_matrix initialized to -inf)
-            if not np.any(score_mat > 0):  # Check if any potential match exists
-                # All GT are FN, all Pred are FP for this frame
-                # print(f"Score matrix has no positive entries for
-                # frame {frame_idx}.") # Optional debug
-                res["CLR_FN"] += len(gt_ids_t)
-                res["CLR_FP"] += len(pred_ids_t)
-                # Reset previous timestep tracker IDs as no matches occurred
-                prev_timestep_tracker_id[:] = np.nan
-                matched_in_prev_step[:] = False
-                continue  # Skip assignment and metric updates for this frame
+
+
+            # if not np.any(score_mat != 0):  # Check if any potential match exists
+            #     # All GT are FN, all Pred are FP for this frame
+            #     # print(f"Score matrix has no positive entries for
+            #     # frame {frame_idx}.") # Optional debug
+            #     res["CLR_FN"] += len(gt_ids_t)
+            #     res["CLR_FP"] += len(pred_ids_t)
+            #     # Reset previous timestep tracker IDs as no matches occurred
+            #     prev_timestep_tracker_id[:] = np.nan
+            #     matched_in_prev_step[:] = False
+            #     continue  # Skip assignment and metric updates for this frame
 
             # Solve assignment problem
             # Note: linear_sum_assignment finds the minimum cost assignment
@@ -328,7 +330,7 @@ class CLEARMetric(TrackingMetric):
                 # IDSW occurs if:
                 # 1. The GT ID *was* matched before (prev_tracker_id is not NaN)
                 # 2. The current matched tracker ID is *different* from the previous one
-                is_idsw = (~np.isnan(prev_matched_tracker_ids)) & (
+                is_idsw = (np.logical_not(np.isnan(prev_matched_tracker_ids))) & (
                     matched_tracker_ids != prev_matched_tracker_ids
                 )
                 res["IDSW"] += np.sum(is_idsw)
