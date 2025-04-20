@@ -82,10 +82,14 @@ class CLEARMetric(TrackingMetric):
         res["MOTP"] = res["MOTP_sum"] / np.maximum(1.0, res["CLR_TP"])
         # Note: sMOTA and MOTAL are sometimes defined, but MOTA/MOTP are primary
 
-        res['sMOTA'] = (res['MOTP_sum'] - res['FP'] - res['IDSW']) / np.maximum(1.0, res['CLR_TP'] + res['FN'])
+        res["sMOTA"] = (res["MOTP_sum"] - res["FP"] - res["IDSW"]) / np.maximum(
+            1.0, res["CLR_TP"] + res["FN"]
+        )
 
-        safe_log_idsw = np.log10(res['IDSW']) if res['IDSW'] > 0 else res['IDSW']
-        res['MOTAL'] = (res['CLR_TP'] - res['FP'] - safe_log_idsw) / np.maximum(1.0, res['CLR_TP'] + res['FN'])
+        safe_log_idsw = np.log10(res["IDSW"]) if res["IDSW"] > 0 else res["IDSW"]
+        res["MOTAL"] = (res["CLR_TP"] - res["FP"] - safe_log_idsw) / np.maximum(
+            1.0, res["CLR_TP"] + res["FN"]
+        )
 
         # res["CLR_F1"] = res["CLR_TP"] / np.maximum(
         #     1.0, num_tracker_dets + res["FN"]
