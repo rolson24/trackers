@@ -157,7 +157,7 @@ def generate_tracks(
     ) -> sv.Detections:
         sequence_name = frame_info.get("sequence_name")
         frame_idx = frame_info.get("frame_idx")
-        image_path = frame_info.get("image_path") # Get image path for metadata
+        image_path = frame_info.get("image_path")  # Get image path for metadata
 
         if callable(tracker_source):
             # It's a callback function
