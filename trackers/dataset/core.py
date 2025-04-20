@@ -181,7 +181,7 @@ class MOTChallengeDataset(Dataset):
                             "frame_idx": frame_idx,
                             "obj_id": obj_id,
                             "xyxy": [x, y, x + width, y + height],
-                            "confidence": confidence, # Correctly assigned
+                            "confidence": confidence,  # Correctly assigned
                             "class_id": class_id,
                         }
 

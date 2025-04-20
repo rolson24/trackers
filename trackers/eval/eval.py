@@ -19,8 +19,13 @@ from trackers.sort_tracker import SORTTracker
 
 # --- Define MOT Constants at Module Level ---
 MOT_PEDESTRIAN_ID = 1
-MOT_DISTRACTOR_IDS = [2, 7, 8, 12] # person_on_vehicle, static_person, distractor, reflection
-MOT_IGNORE_IDS = [2, 7, 8, 12, 13] # Includes crowd (13) for ignore, adjust as needed
+MOT_DISTRACTOR_IDS = [
+    2,
+    7,
+    8,
+    12,
+]  # person_on_vehicle, static_person, distractor, reflection
+MOT_IGNORE_IDS = [2, 7, 8, 12, 13]  # Includes crowd (13) for ignore, adjust as needed
 # Rule for zero_marked GTs: Check if confidence (column 7 in gt.txt) is effectively zero
 # Use a small epsilon for float comparison instead of a larger threshold
 ZERO_MARKED_EPSILON = 1e-5
