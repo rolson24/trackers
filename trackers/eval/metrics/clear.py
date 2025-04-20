@@ -251,47 +251,25 @@ class CLEARMetric(TrackingMetric):
             # https://github.com/JonathonLuiten/TrackEval/blob/master/trackeval/metrics/clear.py#L107
             # Build score matrix: High score for continuity, add IoU similarity,
             # then threshold.
-            # We want to maximize score, so use positive scores and negate
-            # later for assignment.
 
-            # 1. Calculate continuity bonus matrix
-            continuity_bonus = 1000.0  # Must be larger than max similarity (1.0)
+            # 1. Calculate continuity bonus matrix (boolean)
+            continuity_bonus_val = 1000.0  # Must be larger than max similarity (1.0)
             current_timestep_pred_ids = pred_ids_t[np.newaxis, :]  # Shape (1, num_pred)
             gt_prev_timestep_ids = prev_timestep_tracker_id[
                 gt_ids_t[:, np.newaxis]
             ]  # Shape (num_gt, 1)
-            # Boolean matrix (num_gt, num_pred): True where pred ID matches
-            # GT's previous timestep ID
-            # matches_prev_step = (current_timestep_pred_ids == gt_prev_timestep_ids) & (
-            #     np.logical_not(np.isnan(gt_prev_timestep_ids))
-            # )
+            # Boolean matrix (num_gt, num_pred): True where pred ID matches GT's previous timestep ID
             matches_prev_step = current_timestep_pred_ids == gt_prev_timestep_ids
-            score_mat = (
-                matches_prev_step * continuity_bonus
-            )  # Apply large bonus for continuity
 
-            # 2. Add similarity score
-            score_mat = score_mat + similarity
+            # 2. Combine bonus and similarity (mirroring TrackEval structure)
+            score_mat = matches_prev_step * continuity_bonus_val + similarity
 
             # 3. Apply threshold: Zero out entries where IoU is below threshold
-            #    This ensures matches below threshold are only considered
-            #    if they have the continuity bonus.
-            score_mat[similarity < self.iou_threshold + np.finfo("float").eps] = 0
+            score_mat[similarity < self.iou_threshold - np.finfo("float").eps] = 0 # Use minus epsilon like TrackEval
 
             # --- Check for infeasible cost matrix ---
-            # If all scores are 0 after thresholding, no valid assignment is possible
-            # (We use score_mat directly now, not cost_matrix initialized to -inf)
-
-            # if not np.any(score_mat != 0):  # Check if any potential match exists
-            #     # All GT are FN, all Pred are FP for this frame
-            #     # print(f"Score matrix has no positive entries for
-            #     # frame {frame_idx}.") # Optional debug
-            #     res["CLR_FN"] += len(gt_ids_t)
-            #     res["CLR_FP"] += len(pred_ids_t)
-            #     # Reset previous timestep tracker IDs as no matches occurred
-            #     prev_timestep_tracker_id[:] = np.nan
-            #     matched_in_prev_step[:] = False
-            #     continue  # Skip assignment and metric updates for this frame
+            # (Removed the check as TrackEval doesn't seem to have an explicit one here,
+            # the filtering of assignments handles it)
 
             # Solve assignment problem
             # Note: linear_sum_assignment finds the minimum cost assignment
