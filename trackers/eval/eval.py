@@ -261,7 +261,7 @@ def generate_tracks(
         # --- End merge ---
 
         # Only add sequence if processing didn't break early and tracks exist
-        if merged_detections is not None and len(erged_detections) > 0:
+        if merged_detections is not None and len(merged_detections) > 0:
             all_tracks[seq_name] = merged_detections
 
             # Save to disk if requested
