@@ -79,9 +79,10 @@ class CLEARMetric(TrackingMetric):
         # )
         res["MOTP"] = res["MOTP_sum"] / np.maximum(1.0, res["CLR_TP"])
         # Note: sMOTA and MOTAL are sometimes defined, but MOTA/MOTP are primary
-        res["CLR_F1"] = res["CLR_TP"] / np.maximum(
-            1.0, num_tracker_dets + res["FN"]
-        )  # F1 = TP / (TP + 0.5*FP + 0.5*FN) = TP / (NumPred + FN)
+        # res["CLR_F1"] = res["CLR_TP"] / np.maximum(
+        #     1.0, num_tracker_dets + res["FN"]
+        # )  # F1 = TP / (TP + 0.5*FP + 0.5*FN) = TP / (NumPred + FN)
+        res['CLR_F1'] = res['CLR_TP'] / np.maximum(1.0, res['CLR_TP'] + 0.5*res['FN'] + 0.5*res['FP'])
         res["FP_per_frame"] = res["FP"] / np.maximum(1.0, res["CLR_Frames"])
 
         # Ensure all expected float fields exist, even if calculated as 0
@@ -135,6 +136,7 @@ class CLEARMetric(TrackingMetric):
             "MLR",
             "CLR_F1",
             "FP_per_frame",
+            "MOTP_sum",
         ]
         # MOTP_sum is summed for aggregation before final MOTP calculation
         self.summed_fields = [
