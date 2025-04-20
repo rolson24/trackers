@@ -189,10 +189,10 @@ class CLEARMetric(TrackingMetric):
         # GT IDs are assumed to be 0-based and contiguous after preprocessing
         unique_gt_ids_in_input = np.unique(ground_truth.tracker_id)
         if len(unique_gt_ids_in_input) > 0:
-             # Add 1 because IDs are 0-based indices
-             num_gt_ids = int(np.max(unique_gt_ids_in_input)) + 1
+            # Add 1 because IDs are 0-based indices
+            num_gt_ids = int(np.max(unique_gt_ids_in_input)) + 1
         else:
-             num_gt_ids = 0
+            num_gt_ids = 0
 
         # Per GT ID tracking stats (using 0-based index from preprocessed input)
         # Size arrays based on the maximum possible ID + 1
@@ -215,8 +215,8 @@ class CLEARMetric(TrackingMetric):
             pred_ids_t = pred_dets_t.tracker_id
 
             # Update frame count for present GT IDs (using direct 0-based IDs)
-            if len(gt_ids_t) > 0: # Check if gt_ids_t is not empty before indexing
-                 gt_id_frame_count[gt_ids_t] += 1
+            if len(gt_ids_t) > 0:  # Check if gt_ids_t is not empty before indexing
+                gt_id_frame_count[gt_ids_t] += 1
 
             # Handle cases with no detections in the frame
             if len(gt_ids_t) == 0:
