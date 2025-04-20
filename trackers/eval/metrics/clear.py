@@ -66,9 +66,12 @@ class CLEARMetric(TrackingMetric):
 
         #         res['MODA'] = (res['CLR_TP'] - res['CLR_FP']) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FN'])
         # res['MOTA'] = (res['CLR_TP'] - res['CLR_FP'] - res['IDSW']) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FN'])
-        res['MODA'] = (res['CLR_TP'] - res['CLR_FP']) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FN'])
-        res['MOTA'] = (res['CLR_TP'] - res['CLR_FP'] - res['IDSW']) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FN'])
-
+        res["MODA"] = (res["CLR_TP"] - res["CLR_FP"]) / np.maximum(
+            1.0, res["CLR_TP"] + res["CLR_FN"]
+        )
+        res["MOTA"] = (res["CLR_TP"] - res["CLR_FP"] - res["IDSW"]) / np.maximum(
+            1.0, res["CLR_TP"] + res["CLR_FN"]
+        )
 
         # res["MODA"] = (res["CLR_TP"] - res["CLR_FP"]) / np.maximum(1.0, num_gt_dets)
         # res["MOTA"] = (res["CLR_TP"] - res["CLR_FP"] - res["IDSW"]) / np.maximum(
