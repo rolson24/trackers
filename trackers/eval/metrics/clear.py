@@ -265,7 +265,9 @@ class CLEARMetric(TrackingMetric):
             score_mat = matches_prev_step * continuity_bonus_val + similarity
 
             # 3. Apply threshold: Zero out entries where IoU is below threshold
-            score_mat[similarity < self.iou_threshold - np.finfo("float").eps] = 0 # Use minus epsilon like TrackEval
+            score_mat[similarity < self.iou_threshold - np.finfo("float").eps] = (
+                0  # Use minus epsilon like TrackEval
+            )
 
             # --- Check for infeasible cost matrix ---
             # (Removed the check as TrackEval doesn't seem to have an explicit one here,
