@@ -470,45 +470,39 @@ def _preprocess_mot_sequence(
         pred_dets_t_filtered = (
             pred_dets_t  # Start with original predictions for this frame
         )
-        # Initialize list of tracker indices to remove for this frame
-        to_remove_tracker_indices: np.ndarray = np.array([], dtype=int)
+        # Initialize boolean mask for predictions to keep
+        pred_keep_mask = np.ones(len(pred_dets_t), dtype=bool)
 
-        # --- Step 1 & 2: Optionally remove tracker dets matching distractor GTs ---
+        # --- Step 1 & 2: Optionally remove tracker dets matching distractor GTs (Greedy Approach) ---
         if remove_distractor_matches and len(gt_dets_t) > 0 and len(pred_dets_t) > 0:
-            # Identify GT detections that should be ignored (distractors, etc.)
-            gt_ignore_mask = np.isin(gt_dets_t.class_id, MOT_IGNORE_IDS)
-            gt_ignore_dets = gt_dets_t[gt_ignore_mask]
+            # Identify GT detections that are specifically distractors
+            gt_distractor_mask = np.isin(gt_dets_t.class_id, MOT_DISTRACTOR_IDS)
+            gt_distractor_dets = gt_dets_t[gt_distractor_mask]
 
-            if len(gt_ignore_dets) > 0:
-                # Match predictions against these ignored GTs
+            if len(gt_distractor_dets) > 0:
+                # Calculate IoU between all predictions and the distractor GTs
+                # Shape: (num_distractor_gt, num_pred)
                 similarity = sv.detection.utils.box_iou_batch(
-                    gt_ignore_dets.xyxy, pred_dets_t.xyxy
+                    gt_distractor_dets.xyxy, pred_dets_t.xyxy
                 )
-                match_scores = similarity.copy()
-                match_scores[match_scores < iou_threshold - np.finfo("float").eps] = 0
 
-                match_rows, match_cols = linear_sum_assignment(
-                    -match_scores
-                )  # Maximize score
-                valid_match_mask = (
-                    match_scores[match_rows, match_cols] > 0 + np.finfo("float").eps
+                # For each prediction, find its maximum IoU with any distractor GT
+                # similarity.max(axis=0) gives max IoU for each prediction column
+                max_iou_with_distractors = similarity.max(axis=0)
+
+                # Identify predictions whose max IoU with a distractor meets the threshold
+                # Use epsilon for float comparison robustness
+                matched_distractor_mask = (
+                    max_iou_with_distractors >= iou_threshold - np.finfo("float").eps
                 )
-                match_rows = match_rows[valid_match_mask]  # Indices into gt_ignore_dets
-                match_cols = match_cols[valid_match_mask]  # Indices into pred_dets_t
 
-                # Identify matches where the matched GT (from gt_ignore_dets) is a distractor
-                # Use gt_ignore_dets.class_id, indexed by match_rows
-                matched_gt_classes = gt_ignore_dets.class_id[match_rows]
-                is_distractor_match = np.isin(matched_gt_classes, MOT_DISTRACTOR_IDS)
-                # Get the indices of the *predictions* (match_cols) that matched a distractor GT
-                to_remove_tracker_indices = match_cols[is_distractor_match]
+                # Update the keep mask: set to False for predictions matched to distractors
+                pred_keep_mask[matched_distractor_mask] = False
 
-            # Filter tracker detections for the frame if any matched a distractor
-            if len(to_remove_tracker_indices) > 0:
-                pred_keep_mask = np.ones(len(pred_dets_t), dtype=bool)
-                pred_keep_mask[to_remove_tracker_indices] = False
+            # Filter tracker detections for the frame based on the keep mask
+            if not np.all(pred_keep_mask): # Apply filter only if some predictions are removed
                 pred_dets_t_filtered = pred_dets_t[pred_keep_mask]
-            # else: No ignored GTs or no matches to distractors, no predictions removed based on this rule
+            # else: No distractors or no predictions matched distractors above threshold
 
         # --- Step 4: Remove unwanted GT dets ---
         if len(gt_dets_t) > 0:
