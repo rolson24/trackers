@@ -473,36 +473,42 @@ def _preprocess_mot_sequence(
         # Initialize boolean mask for predictions to keep
         pred_keep_mask = np.ones(len(pred_dets_t), dtype=bool)
 
-        # --- Step 1 & 2: Optionally remove tracker dets matching distractor GTs (Greedy Approach) ---
+        # --- Step 1 & 2: Optionally remove tracker dets matching distractor GTs (TrackEval Logic) ---
         if remove_distractor_matches and len(gt_dets_t) > 0 and len(pred_dets_t) > 0:
-            # Identify GT detections that are specifically distractors
-            gt_distractor_mask = np.isin(gt_dets_t.class_id, MOT_DISTRACTOR_IDS)
-            gt_distractor_dets = gt_dets_t[gt_distractor_mask]
+            # Match predictions against *all* GT boxes for this frame
+            similarity = sv.detection.utils.box_iou_batch(
+                gt_dets_t.xyxy, pred_dets_t.xyxy
+            )
+            match_scores = similarity.copy()
+            # Apply IoU threshold for matching
+            match_scores[match_scores < iou_threshold - np.finfo("float").eps] = 0.0
 
-            if len(gt_distractor_dets) > 0:
-                # Calculate IoU between all predictions and the distractor GTs
-                # Shape: (num_distractor_gt, num_pred)
-                similarity = sv.detection.utils.box_iou_batch(
-                    gt_distractor_dets.xyxy, pred_dets_t.xyxy
-                )
+            # Use Hungarian algorithm to find best matches
+            match_rows, match_cols = linear_sum_assignment(-match_scores) # Maximize score
 
-                # For each prediction, find its maximum IoU with any distractor GT
-                # similarity.max(axis=0) gives max IoU for each prediction column
-                max_iou_with_distractors = similarity.max(axis=0)
+            # Filter matches based on the thresholded score
+            valid_match_mask = (
+                match_scores[match_rows, match_cols] > 0.0 + np.finfo("float").eps
+            )
+            match_rows = match_rows[valid_match_mask] # Indices into gt_dets_t
+            match_cols = match_cols[valid_match_mask] # Indices into pred_dets_t
 
-                # Identify predictions whose max IoU with a distractor meets the threshold
-                # Use epsilon for float comparison robustness
-                matched_distractor_mask = (
-                    max_iou_with_distractors >= iou_threshold - np.finfo("float").eps
-                )
+            # Identify matches where the matched GT object is a distractor
+            if len(match_rows) > 0:
+                matched_gt_classes = gt_dets_t.class_id[match_rows]
+                is_distractor_match = np.isin(matched_gt_classes, MOT_DISTRACTOR_IDS)
+
+                # Get the indices of the *predictions* (match_cols) that matched a distractor GT
+                to_remove_tracker_indices = match_cols[is_distractor_match]
 
                 # Update the keep mask: set to False for predictions matched to distractors
-                pred_keep_mask[matched_distractor_mask] = False
+                if len(to_remove_tracker_indices) > 0:
+                    pred_keep_mask[to_remove_tracker_indices] = False
 
             # Filter tracker detections for the frame based on the keep mask
             if not np.all(pred_keep_mask): # Apply filter only if some predictions are removed
                 pred_dets_t_filtered = pred_dets_t[pred_keep_mask]
-            # else: No distractors or no predictions matched distractors above threshold
+            # else: No predictions matched distractors above threshold
 
         # --- Step 4: Remove unwanted GT dets ---
         if len(gt_dets_t) > 0:
