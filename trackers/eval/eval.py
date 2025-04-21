@@ -231,15 +231,15 @@ def generate_tracks(
         frame_iterator: Iterator[Dict[str, Any]] = dataset.get_frame_iterator(seq_name)
         sequence_had_frames = False  # Track if iterator yields anything
 
+        if isinstance(tracker_source, BaseTracker):
+            # Reset tracker state for the first frame of each sequence
+            tracker_source.reset()
+
         try:
             for frame_info in frame_iterator:
                 sequence_had_frames = True
                 frame_idx: int = frame_info["frame_idx"]
                 frame_info["sequence_name"] = seq_name  # Add sequence name for context
-
-                if isinstance(tracker_source, BaseTracker) and frame_idx == 0:
-                    # Reset tracker state for the first frame of each sequence
-                    tracker_source.reset()
 
 
                 # Load the frame image
