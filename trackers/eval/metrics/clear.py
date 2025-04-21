@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Union, Set
+from typing import Any, Dict, List, Optional, Set, Union
 
 import numpy as np
 import supervision as sv
@@ -66,8 +66,16 @@ class CLEARMetric(TrackingMetric):
         """
         # Ensure necessary base counts are present, default to 0.0 if missing
         required_counts: List[str] = [
-            "CLR_TP", "FN", "FP", "IDSW", "MOTP_sum",
-            "MT", "ML", "PT", "Frag", "CLR_Frames",
+            "CLR_TP",
+            "FN",
+            "FP",
+            "IDSW",
+            "MOTP_sum",
+            "MT",
+            "ML",
+            "PT",
+            "Frag",
+            "CLR_Frames",
         ]
         for key in required_counts:
             res.setdefault(key, 0.0)
@@ -116,8 +124,18 @@ class CLEARMetric(TrackingMetric):
         # --- Ensure all expected float fields exist ---
         # List includes all derived float metrics calculated above
         float_fields: List[str] = [
-            "MOTA", "MOTP", "MODA", "Recall", "Precision", "MTR", "PTR", "MLR",
-            "CLR_F1", "sMOTA", "MOTAL", "FP_per_frame",
+            "MOTA",
+            "MOTP",
+            "MODA",
+            "Recall",
+            "Precision",
+            "MTR",
+            "PTR",
+            "MLR",
+            "CLR_F1",
+            "sMOTA",
+            "MOTAL",
+            "FP_per_frame",
         ]
         for field in float_fields:
             # Ensure field exists and replace potential NaN with 0.0
@@ -140,11 +158,30 @@ class CLEARMetric(TrackingMetric):
         # Define fields following TrackEval naming convention where possible
         # These lists define the structure of the output dictionaries.
         self.integer_fields: List[str] = [
-            "CLR_TP", "FN", "FP", "IDSW", "MT", "PT", "ML", "Frag", "CLR_Frames",
+            "CLR_TP",
+            "FN",
+            "FP",
+            "IDSW",
+            "MT",
+            "PT",
+            "ML",
+            "Frag",
+            "CLR_Frames",
         ]
         self.float_fields: List[str] = [
-            "MOTA", "MOTP", "MODA", "Recall", "Precision", "MTR", "PTR", "MLR",
-            "CLR_F1", "sMOTA", "MOTAL", "FP_per_frame", "MOTP_sum", # Include MOTP_sum here for completeness
+            "MOTA",
+            "MOTP",
+            "MODA",
+            "Recall",
+            "Precision",
+            "MTR",
+            "PTR",
+            "MLR",
+            "CLR_F1",
+            "sMOTA",
+            "MOTAL",
+            "FP_per_frame",
+            "MOTP_sum",  # Include MOTP_sum here for completeness
         ]
         # MOTP_sum is summed during aggregation before the final MOTP calculation
         self.summed_fields: List[str] = [
@@ -195,7 +232,7 @@ class CLEARMetric(TrackingMetric):
         """
         # Initialize results dictionary with all expected fields set to 0.0
         res: Dict[str, float] = {field: 0.0 for field in self.fields}
-        res["MOTP_sum"] = 0.0 # Ensure MOTP_sum is also initialized
+        res["MOTP_sum"] = 0.0  # Ensure MOTP_sum is also initialized
 
         # --- Input Validation ---
         if ground_truth.data is None or "frame_idx" not in ground_truth.data:
@@ -218,9 +255,13 @@ class CLEARMetric(TrackingMetric):
         # Determine frame range
         gt_frame_indices: Set[int] = set(ground_truth.data["frame_idx"])
         pred_frame_indices: Set[int] = set(predictions.data["frame_idx"])
-        all_frame_indices: List[int] = sorted(list(gt_frame_indices.union(pred_frame_indices)))
+        all_frame_indices: List[int] = sorted(
+            list(gt_frame_indices.union(pred_frame_indices))
+        )
 
-        if not all_frame_indices: # Should not happen if len > 0 check passed, but safety
+        if (
+            not all_frame_indices
+        ):  # Should not happen if len > 0 check passed, but safety
             res["CLR_Frames"] = 0.0
             return self._compute_final_fields(res)
 
@@ -231,23 +272,29 @@ class CLEARMetric(TrackingMetric):
         # (Assumes IDs are 0-based and contiguous after preprocessing)
         num_gt_ids: int = 0
         if len(ground_truth) > 0:
-             unique_gt_ids_in_input = np.unique(ground_truth.tracker_id)
-             if len(unique_gt_ids_in_input) > 0:
-                 # Add 1 because IDs are 0-based indices
-                 max_gt_id = np.max(unique_gt_ids_in_input)
-                 if np.isnan(max_gt_id):
-                      print("NaN found in ground truth tracker IDs. Results may be inaccurate.")
-                      # Attempt to filter NaNs if necessary, though preprocessing should handle this
-                      valid_ids = unique_gt_ids_in_input[~np.isnan(unique_gt_ids_in_input)]
-                      num_gt_ids = int(np.max(valid_ids)) + 1 if len(valid_ids) > 0 else 0
-                 else:
-                      num_gt_ids = int(max_gt_id) + 1
+            unique_gt_ids_in_input = np.unique(ground_truth.tracker_id)
+            if len(unique_gt_ids_in_input) > 0:
+                # Add 1 because IDs are 0-based indices
+                max_gt_id = np.max(unique_gt_ids_in_input)
+                if np.isnan(max_gt_id):
+                    print(
+                        "NaN found in ground truth tracker IDs. Results may be inaccurate."
+                    )
+                    # Attempt to filter NaNs if necessary, though preprocessing should handle this
+                    valid_ids = unique_gt_ids_in_input[
+                        ~np.isnan(unique_gt_ids_in_input)
+                    ]
+                    num_gt_ids = int(np.max(valid_ids)) + 1 if len(valid_ids) > 0 else 0
+                else:
+                    num_gt_ids = int(max_gt_id) + 1
 
         # Per GT ID tracking stats (using 0-based index)
         # Size arrays based on the maximum possible ID + 1
         gt_id_frame_count: np.ndarray = np.zeros(num_gt_ids, dtype=int)
         gt_id_matched_count: np.ndarray = np.zeros(num_gt_ids, dtype=int)
-        gt_id_frag_count: np.ndarray = np.zeros(num_gt_ids, dtype=int) # Counts fragmentation starts
+        gt_id_frag_count: np.ndarray = np.zeros(
+            num_gt_ids, dtype=int
+        )  # Counts fragmentation starts
 
         # Track matching history for IDSW and Fragmentation calculation
         # Stores the *tracker* ID last matched to each *GT* ID (index)
@@ -262,8 +309,12 @@ class CLEARMetric(TrackingMetric):
         print(f"Processing {len(all_frame_indices)} frames for CLEAR metrics...")
         for frame_idx in all_frame_indices:
             # Get detections for the current frame
-            gt_dets_t: sv.Detections = ground_truth[ground_truth.data["frame_idx"] == frame_idx]
-            pred_dets_t: sv.Detections = predictions[predictions.data["frame_idx"] == frame_idx]
+            gt_dets_t: sv.Detections = ground_truth[
+                ground_truth.data["frame_idx"] == frame_idx
+            ]
+            pred_dets_t: sv.Detections = predictions[
+                predictions.data["frame_idx"] == frame_idx
+            ]
 
             # Get corresponding IDs (assumed to be 0-based indices)
             gt_ids_t: np.ndarray = gt_dets_t.tracker_id
@@ -274,24 +325,28 @@ class CLEARMetric(TrackingMetric):
                 # Check bounds before indexing
                 valid_gt_ids_mask = (gt_ids_t >= 0) & (gt_ids_t < num_gt_ids)
                 if not np.all(valid_gt_ids_mask):
-                     print(f"Frame {frame_idx}: GT IDs out of expected range [0, {num_gt_ids-1}]. Clamping.")
-                     gt_ids_t = np.clip(gt_ids_t, 0, num_gt_ids - 1) # Clamp to valid range
+                    print(
+                        f"Frame {frame_idx}: GT IDs out of expected range [0, {num_gt_ids - 1}]. Clamping."
+                    )
+                    gt_ids_t = np.clip(
+                        gt_ids_t, 0, num_gt_ids - 1
+                    )  # Clamp to valid range
 
                 gt_id_frame_count[gt_ids_t] += 1
 
             # --- Handle cases with no GT or no predictions in the frame ---
             if len(gt_ids_t) == 0:
-                res["FP"] += len(pred_ids_t) # All predictions are False Positives
+                res["FP"] += len(pred_ids_t)  # All predictions are False Positives
                 # Reset previous timestep state as no GTs were present
                 prev_timestep_tracker_id[:] = np.nan
                 matched_in_prev_step[:] = False
-                continue # Move to next frame
+                continue  # Move to next frame
             if len(pred_ids_t) == 0:
-                res["FN"] += len(gt_ids_t) # All GTs are False Negatives
+                res["FN"] += len(gt_ids_t)  # All GTs are False Negatives
                 # Reset previous timestep state as no predictions were present
                 prev_timestep_tracker_id[:] = np.nan
                 matched_in_prev_step[:] = False
-                continue # Move to next frame
+                continue  # Move to next frame
             # --- End Handle empty cases ---
 
             # --- Calculate Similarity Matrix ---
@@ -307,12 +362,17 @@ class CLEARMetric(TrackingMetric):
 
             # 1. Calculate continuity bonus matrix
             # Bonus applied if a prediction ID matches the ID tracked by the GT in the previous step
-            current_timestep_pred_ids: np.ndarray = pred_ids_t[np.newaxis, :]  # Shape (1, num_pred)
+            current_timestep_pred_ids: np.ndarray = pred_ids_t[
+                np.newaxis, :
+            ]  # Shape (1, num_pred)
             # Get the tracker ID associated with each GT ID in the *previous* timestep
-            gt_prev_timestep_ids: np.ndarray = prev_timestep_tracker_id[gt_ids_t[:, np.newaxis]] # Shape (num_gt, 1)
+            gt_prev_timestep_ids: np.ndarray = prev_timestep_tracker_id[
+                gt_ids_t[:, np.newaxis]
+            ]  # Shape (num_gt, 1)
             # Boolean matrix (num_gt, num_pred): True where pred ID matches GT's previous timestep ID
-            matches_prev_step: np.ndarray = (current_timestep_pred_ids == gt_prev_timestep_ids) & \
-                                            (~np.isnan(gt_prev_timestep_ids)) # Ensure previous ID was valid
+            matches_prev_step: np.ndarray = (
+                current_timestep_pred_ids == gt_prev_timestep_ids
+            ) & (~np.isnan(gt_prev_timestep_ids))  # Ensure previous ID was valid
 
             # 2. Combine bonus and similarity
             # Score is high if continuity bonus applies, otherwise it's just IoU
@@ -334,9 +394,15 @@ class CLEARMetric(TrackingMetric):
             # (Positive score means IoU >= threshold OR continuity bonus was applied)
             actual_scores: np.ndarray = score_mat[row_ind, col_ind]
             # Use epsilon for float comparison
-            valid_assignment_mask: np.ndarray = actual_scores > 0.0 + np.finfo("float").eps
-            match_rows: np.ndarray = row_ind[valid_assignment_mask] # Indices into gt_dets_t
-            match_cols: np.ndarray = col_ind[valid_assignment_mask] # Indices into pred_dets_t
+            valid_assignment_mask: np.ndarray = (
+                actual_scores > 0.0 + np.finfo("float").eps
+            )
+            match_rows: np.ndarray = row_ind[
+                valid_assignment_mask
+            ]  # Indices into gt_dets_t
+            match_cols: np.ndarray = col_ind[
+                valid_assignment_mask
+            ]  # Indices into pred_dets_t
             # --- End Matching Logic ---
 
             # --- Update Metrics based on Matches ---
@@ -358,18 +424,23 @@ class CLEARMetric(TrackingMetric):
 
                 # --- ID Switch Calculation ---
                 # Compare current matched tracker ID with the *last known* matched ID for this GT ID
-                prev_matched_tracker_ids: np.ndarray = prev_tracker_id[matched_gt_indices]
+                prev_matched_tracker_ids: np.ndarray = prev_tracker_id[
+                    matched_gt_indices
+                ]
                 # IDSW occurs if:
                 # 1. The GT ID *was* matched before (prev_tracker_id is not NaN)
                 # 2. The current matched tracker ID is *different* from the previous one
-                is_idsw: np.ndarray = (np.logical_not(np.isnan(prev_matched_tracker_ids))) & \
-                                      (matched_tracker_ids != prev_matched_tracker_ids)
+                is_idsw: np.ndarray = (
+                    np.logical_not(np.isnan(prev_matched_tracker_ids))
+                ) & (matched_tracker_ids != prev_matched_tracker_ids)
                 res["IDSW"] += np.sum(is_idsw)
                 # --- End ID Switch Calculation ---
 
                 # --- Update Tracking State for Next Frame ---
                 # Fragmentation: Increment count if GT ID is matched now but was *not* matched in the previous step
-                was_not_matched_prev: np.ndarray = np.logical_not(matched_in_prev_step[matched_gt_indices])
+                was_not_matched_prev: np.ndarray = np.logical_not(
+                    matched_in_prev_step[matched_gt_indices]
+                )
                 gt_id_frag_count[matched_gt_indices] += was_not_matched_prev
 
                 # Update matched count for this GT ID (used for MT/ML/PT)
@@ -399,21 +470,27 @@ class CLEARMetric(TrackingMetric):
             tracked_ratio: np.ndarray = np.divide(
                 gt_id_matched_count[valid_gt_indices_mask],
                 gt_id_frame_count[valid_gt_indices_mask],
-                out=np.zeros_like(gt_id_matched_count[valid_gt_indices_mask], dtype=float),
-                where=gt_id_frame_count[valid_gt_indices_mask] != 0
+                out=np.zeros_like(
+                    gt_id_matched_count[valid_gt_indices_mask], dtype=float
+                ),
+                where=gt_id_frame_count[valid_gt_indices_mask] != 0,
             )
 
             # Mostly Tracked (MT): Ratio > threshold
             res["MT"] = np.sum(tracked_ratio > _MT_THRESHOLD)
             # Partially Tracked (PT): Ratio between thresholds
-            res["PT"] = np.sum((tracked_ratio >= _ML_THRESHOLD) & (tracked_ratio <= _MT_THRESHOLD))
+            res["PT"] = np.sum(
+                (tracked_ratio >= _ML_THRESHOLD) & (tracked_ratio <= _MT_THRESHOLD)
+            )
             # Mostly Lost (ML): Ratio < threshold
             res["ML"] = np.sum(tracked_ratio < _ML_THRESHOLD)
 
             # Fragmentation (Frag): Sum of (number of fragments - 1) for each GT track
             # gt_id_frag_count holds the number of times a track *started* being matched
             # (either first time, or after a gap)
-            res["Frag"] = np.sum(np.maximum(0, gt_id_frag_count[valid_gt_indices_mask] - 1))
+            res["Frag"] = np.sum(
+                np.maximum(0, gt_id_frag_count[valid_gt_indices_mask] - 1)
+            )
         else:
             # Handle case where GT IDs existed (num_gt_ids > 0) but never appeared
             res["MT"] = 0.0
@@ -432,8 +509,8 @@ class CLEARMetric(TrackingMetric):
         final_res: Dict[str, float] = {}
         all_defined_fields = set(self.integer_fields) | set(self.float_fields)
         for k in all_defined_fields:
-             # Use get with default 0.0, convert potential NaN to 0.0, ensure float
-             final_res[k] = float(np.nan_to_num(res.get(k, 0.0)))
+            # Use get with default 0.0, convert potential NaN to 0.0, ensure float
+            final_res[k] = float(np.nan_to_num(res.get(k, 0.0)))
 
         return final_res
 
@@ -473,13 +550,16 @@ class CLEARMetric(TrackingMetric):
         for seq_res in per_sequence_results:
             if isinstance(seq_res, dict):
                 # Check if essential keys seem present (basic validation)
-                if all(isinstance(seq_res.get(f, 0.0), (int, float)) for f in self.summed_fields):
+                if all(
+                    isinstance(seq_res.get(f, 0.0), (int, float))
+                    for f in self.summed_fields
+                ):
                     valid_sequences += 1
                     for field in self.summed_fields:
                         # Add the value, defaulting to 0.0 if key is missing
                         aggregated_counts[field] += seq_res.get(field, 0.0)
                 else:
-                     print(
+                    print(
                         f"Skipping sequence result due to missing or non-numeric "
                         f"summed fields during CLEAR aggregation: {seq_res}"
                     )
@@ -493,7 +573,9 @@ class CLEARMetric(TrackingMetric):
             return {"message": "No valid sequence results found for CLEAR aggregation"}
 
         # Recalculate final derived metrics from the aggregated counts
-        final_aggregated_metrics: Dict[str, float] = self._compute_final_fields(aggregated_counts)
+        final_aggregated_metrics: Dict[str, float] = self._compute_final_fields(
+            aggregated_counts
+        )
 
         # Prepare the final dictionary, ensuring all expected fields are present
         result_dict: Dict[str, Union[float, str]] = {}
@@ -506,11 +588,14 @@ class CLEARMetric(TrackingMetric):
             elif field in self.float_fields:
                 # Get recalculated float metric
                 # Use get with default 0.0, convert potential NaN to 0.0
-                result_dict[field] = float(np.nan_to_num(final_aggregated_metrics.get(field, 0.0)))
+                result_dict[field] = float(
+                    np.nan_to_num(final_aggregated_metrics.get(field, 0.0))
+                )
             else:
-                 # Should not happen if fields lists are correct
-                 print(f"Field '{field}' not found in integer or float field lists during aggregation.")
-
+                # Should not happen if fields lists are correct
+                print(
+                    f"Field '{field}' not found in integer or float field lists during aggregation."
+                )
 
         # Ensure MOTP_sum (which is in float_fields but also summed) is correctly represented
         result_dict["MOTP_sum"] = aggregated_counts.get("MOTP_sum", 0.0)
