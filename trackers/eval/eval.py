@@ -595,7 +595,7 @@ def _evaluate_single_sequence(
                 for metric_name in list(metrics_to_compute.keys()) + placeholder_metrics
             }
     except Exception as e:
-        print(f"Error loading ground truth for {seq_name}: {e}", exc_info=True)
+        print(f"Error loading ground truth for {seq_name}: {e}")
         error_result = {"error": f"Failed to load ground truth: {e}"}
         return {
             metric_name: error_result
@@ -701,7 +701,7 @@ def _evaluate_single_sequence(
             error_msg = (
                 f"Error computing metric '{metric_name}' for sequence {seq_name}: {e}"
             )
-            print(error_msg, exc_info=True)  # Log traceback
+            print(error_msg)  # Log traceback
             seq_results_for_this_seq[metric_name] = {"error": str(e)}
     # --- End Compute Metrics ---
 
@@ -787,7 +787,7 @@ def _aggregate_results(
             print(f"  Aggregated {metric_name}: {aggregated_result!r}")
         except Exception as e:
             error_msg = f"Error during aggregation for metric '{metric_name}': {e}"
-            print(error_msg, exc_info=True)
+            print(error_msg)
             overall_results[metric_name] = {"error": f"Aggregation failed: {e}"}
     # --- End Aggregate Implemented Metrics ---
 
@@ -873,7 +873,7 @@ def evaluate_tracks(
         if placeholder_metrics:
             print(f"Placeholder metrics: {placeholder_metrics}")
     except Exception as e:
-        print(f"Failed to instantiate metrics: {e}", exc_info=True)
+        print(f"Failed to instantiate metrics: {e}")
         return {
             "per_sequence": {},
             "overall": {"error": f"Metric instantiation failed: {e}"},
@@ -905,7 +905,7 @@ def evaluate_tracks(
             loaded_tracks = load_tracks_from_disk(tracks_path or ".", sequence_names)  # type: ignore
         except Exception as e:
             print(
-                f"Failed to load tracks from disk ({tracks_path}): {e}", exc_info=True
+                f"Failed to load tracks from disk ({tracks_path}): {e}"
             )
             # Return error if loading fails critically
             return {
@@ -1080,7 +1080,7 @@ def evaluate_tracker(
             image_loader=image_loader,
         )
     except Exception as e:
-        print(f"Track generation failed: {e}", exc_info=True)
+        print(f"Track generation failed: {e}")
         # Return an error structure consistent with evaluate_tracks output
         return {
             "per_sequence": {},
@@ -1097,7 +1097,7 @@ def evaluate_tracker(
             preprocess_remove_distractor_matches=preprocess_remove_distractor_matches,
         )
     except Exception as e:
-        print(f"Track evaluation failed: {e}", exc_info=True)
+        print(f"Track evaluation failed: {e}")
         # Return an error structure consistent with evaluate_tracks output
         return {
             "per_sequence": {},
