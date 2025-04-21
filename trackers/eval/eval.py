@@ -237,6 +237,11 @@ def generate_tracks(
                 frame_idx: int = frame_info["frame_idx"]
                 frame_info["sequence_name"] = seq_name  # Add sequence name for context
 
+                if isinstance(tracker_source, BaseTracker) and frame_idx == 0:
+                    # Reset tracker state for the first frame of each sequence
+                    tracker_source.reset()
+
+
                 # Load the frame image
                 frame: Optional[np.ndarray] = None
                 image_path: Optional[str] = frame_info.get("image_path")
