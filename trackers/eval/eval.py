@@ -470,6 +470,8 @@ def _preprocess_mot_sequence(
         pred_dets_t_filtered = (
             pred_dets_t  # Start with original predictions for this frame
         )
+        # Initialize list of tracker indices to remove for this frame
+        to_remove_tracker_indices: np.ndarray = np.array([], dtype=int)
 
         # --- Step 1 & 2: Optionally remove tracker dets matching distractor GTs ---
         if remove_distractor_matches and len(gt_dets_t) > 0 and len(pred_dets_t) > 0:
@@ -491,20 +493,22 @@ def _preprocess_mot_sequence(
                 valid_match_mask = (
                     match_scores[match_rows, match_cols] > 0 + np.finfo("float").eps
                 )
-                match_rows = match_rows[valid_match_mask]
-                match_cols = match_cols[valid_match_mask]
+                match_rows = match_rows[valid_match_mask] # Indices into gt_ignore_dets
+                match_cols = match_cols[valid_match_mask] # Indices into pred_dets_t
 
-                # Identify matches where GT is a distractor
-                matched_gt_classes = gt_dets_t.class_id[match_rows]
+                # Identify matches where the matched GT (from gt_ignore_dets) is a distractor
+                # Use gt_ignore_dets.class_id, indexed by match_rows
+                matched_gt_classes = gt_ignore_dets.class_id[match_rows]
                 is_distractor_match = np.isin(matched_gt_classes, MOT_DISTRACTOR_IDS)
+                # Get the indices of the *predictions* (match_cols) that matched a distractor GT
                 to_remove_tracker_indices = match_cols[is_distractor_match]
 
-            # Filter tracker detections for the frame
+            # Filter tracker detections for the frame if any matched a distractor
             if len(to_remove_tracker_indices) > 0:
                 pred_keep_mask = np.ones(len(pred_dets_t), dtype=bool)
                 pred_keep_mask[to_remove_tracker_indices] = False
                 pred_dets_t_filtered = pred_dets_t[pred_keep_mask]
-            # else: No ignored GTs, no predictions removed based on this rule
+            # else: No ignored GTs or no matches to distractors, no predictions removed based on this rule
 
         # --- Step 4: Remove unwanted GT dets ---
         if len(gt_dets_t) > 0:
