@@ -904,9 +904,7 @@ def evaluate_tracks(
             # Ensure tracks_path is not None here (checked by initial ValueError)
             loaded_tracks = load_tracks_from_disk(tracks_path or ".", sequence_names)  # type: ignore
         except Exception as e:
-            print(
-                f"Failed to load tracks from disk ({tracks_path}): {e}"
-            )
+            print(f"Failed to load tracks from disk ({tracks_path}): {e}")
             # Return error if loading fails critically
             return {
                 "per_sequence": {},
