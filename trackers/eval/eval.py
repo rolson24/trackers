@@ -193,6 +193,7 @@ def generate_tracks(
             tracks = tracker_source(detections, frame, frame_info)
         elif isinstance(tracker_source, BaseTracker):
             tracks = tracker_source.update(detections)
+            tracks = tracks[tracks.tracker_id != -1]
         else:
             raise TypeError(f"Unsupported tracker_source type: {type(tracker_source)}")
 
