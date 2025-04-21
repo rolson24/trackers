@@ -320,66 +320,82 @@ def _relabel_ids(detections: sv.Detections) -> sv.Detections:
     if len(detections) == 0 or detections.tracker_id is None:
         return detections
 
-    original_ids = detections.tracker_id
-    new_ids = np.full_like(original_ids, fill_value=-1, dtype=int)  # Initialize with -1
-
     # --- Robust ID Handling ---
-    # 1. Identify valid numeric IDs (non-NaN)
-    is_numeric = ~np.isnan(
-        original_ids.astype(float)
-    )  # Convert to float for isnan check
+    # 1. Filter out potential NaN values first
+    valid_ids_mask = ~np.isnan(detections.tracker_id)
+    if not np.any(valid_ids_mask):
+        # All IDs were NaN or array was empty after filtering
+        return detections  # Nothing to relabel
 
-    if not np.any(is_numeric):
-        print("No numeric tracker IDs found for relabeling.")
-        detections.tracker_id = new_ids  # Return with all -1s
-        return detections
-
-    # 2. Get unique integer IDs from the valid numeric ones
-    valid_original_ids = original_ids[is_numeric]
+    # 2. Get unique integer IDs
     try:
-        # Attempt conversion to int for unique finding
-        unique_ids = np.unique(valid_original_ids.astype(int))
+        # Attempt conversion to int, np.unique handles the rest
+        unique_ids = np.unique(detections.tracker_id[valid_ids_mask].astype(int))
     except ValueError:
         print(
-            "Could not convert some numeric tracker IDs to integers during relabeling. "
-            "Non-integer numeric IDs will be assigned -1."
+            "Warning: Could not convert tracker IDs to integers during relabeling. Skipping."
         )
-        # Fallback: only consider IDs that *can* be cast to int without error
-        int_castable_mask = np.array(
-            [isinstance(x, int) or x.is_integer() for x in valid_original_ids]
-        )
-        if not np.any(int_castable_mask):
-            print("No integer-castable tracker IDs found after filtering.")
-            detections.tracker_id = new_ids  # Return with all -1s
-            return detections
-        unique_ids = np.unique(valid_original_ids[int_castable_mask].astype(int))
+        return detections
 
     if len(unique_ids) == 0:
-        print("No unique integer tracker IDs found after filtering.")
-        detections.tracker_id = new_ids  # Return with all -1s
+        # Should not happen if valid_ids_mask passed, but as a safeguard
         return detections
     # --- End Robust ID Handling ---
 
-    # Create mapping from original unique int IDs to new 0-based IDs
-    id_map = {original_id: new_id for new_id, original_id in enumerate(unique_ids)}
+    # Now unique_ids contains only valid integers
+    max_id = np.max(unique_ids)
+    min_id = np.min(unique_ids)
 
-    # Apply mapping to the original positions where IDs were numeric and int-castable
-    for i in np.where(is_numeric)[0]:
-        try:
-            original_id_val = int(original_ids[i])
-            if original_id_val in id_map:
-                new_ids[i] = id_map[original_id_val]
-            # else: ID was numeric but not int-castable or not in unique_ids, remains -1
-        except (ValueError, TypeError):
-            # ID was numeric but couldn't be cast to int, remains -1
-            pass
+    # The previous type check is no longer needed as we ensured integer types
+    # if not np.issubdtype(type(max_id), np.integer): # Removed check
+    #     print(
+    #         f"Warning: Non-integer max unique ID found during relabeling: {max_id}. Skipping relabel."
+    #     )
+    #     return detections
 
-    # Check if any IDs remained -1 unexpectedly (should only be NaNs or non-int numerics)
-    if np.any(new_ids[is_numeric] == -1):
-        num_unmapped = np.sum(new_ids[is_numeric] == -1)
+    offset = 0
+    if min_id < 0:
         print(
-            f"{num_unmapped} numeric tracker IDs could not be mapped (likely non-integer). "
-            f"They remain as -1."
+            f"Warning: Negative tracker IDs found ({min_id}). Shifting IDs for relabeling."
+        )
+        offset = -min_id
+        max_id += offset  # Adjust max_id after offset calculation
+
+    # Check max_id validity after potential offset adjustment
+    if np.isnan(max_id):
+        print("Warning: Max ID is NaN during relabeling after offset. Skipping.")
+        return detections
+
+    # Ensure id_map size is correct integer
+    map_size = int(max_id) + 1
+    id_map = np.full(map_size, fill_value=-1, dtype=int)
+    new_id_counter = 0
+    # Initialize new_ids based on the original tracker_id shape and type
+    new_ids = np.full_like(detections.tracker_id, fill_value=-1, dtype=int)
+
+    # Iterate through the original positions where IDs were valid
+    original_indices = np.where(valid_ids_mask)[0]
+    for i in original_indices:
+        original_id = int(detections.tracker_id[i]) + offset  # Apply offset
+        if original_id >= map_size or original_id < 0:  # Bounds check
+            print(
+                f"Warning: Original ID {original_id - offset} out of bounds for map during relabeling. Skipping ID."
+            )
+            continue
+
+        if id_map[original_id] == -1:
+            id_map[original_id] = new_id_counter
+            new_ids[i] = new_id_counter
+            new_id_counter += 1
+        else:
+            new_ids[i] = id_map[original_id]
+
+    # Handle potential -1s if any IDs were invalid/NaN or out of bounds
+    if np.any(
+        new_ids[valid_ids_mask] == -1
+    ):  # Check only where IDs were originally valid
+        print(
+            "Warning: Some valid tracker IDs could not be relabeled (check bounds warnings)."
         )
 
     detections.tracker_id = new_ids
@@ -417,104 +433,83 @@ def _preprocess_mot_sequence(
         ground truth detections and processed prediction detections. Returns
         original inputs if required fields are missing.
     """
-    gt_out_list: List[sv.Detections] = []
-    pred_out_list: List[sv.Detections] = []
+    gt_out_list = []
+    pred_out_list = []
 
     # --- Input Validation ---
-    gt_valid = (
-        gt_dets.data is not None
-        and "frame_idx" in gt_dets.data
-        and gt_dets.tracker_id is not None
-        and gt_dets.class_id is not None
-        and gt_dets.confidence is not None
-    )
-    pred_valid = (
-        pred_dets.data is not None
-        and "frame_idx" in pred_dets.data
-        and pred_dets.tracker_id is not None
-    )
-
-    if not gt_valid:
+    if (
+        "frame_idx" not in gt_dets.data
+        or gt_dets.tracker_id is None
+        or gt_dets.class_id is None
+        or gt_dets.confidence is None
+    ):
         print(
-            "GT detections missing required fields (frame_idx, tracker_id, class_id, "
-            "confidence) for MOT preprocessing. Skipping preprocessing."
+            "Warning: GT detections missing required fields (frame_idx, tracker_id, class_id, confidence) for MOT preprocessing. Skipping."
         )
         return gt_dets, pred_dets
-    if not pred_valid:
+    if "frame_idx" not in pred_dets.data or pred_dets.tracker_id is None:
         print(
-            "Prediction detections missing required fields (frame_idx, tracker_id) "
-            "for MOT preprocessing. Skipping preprocessing."
+            "Warning: Prediction detections missing required fields (frame_idx, tracker_id) for MOT preprocessing. Skipping."
         )
         return gt_dets, pred_dets
-    # --- End Input Validation ---
 
-    # Ensure frame_idx are numpy arrays for efficient processing
-    gt_frame_indices = gt_dets.data["frame_idx"]
-    pred_frame_indices = pred_dets.data["frame_idx"]
-
-    all_frame_indices: List[int] = sorted(
-        list(set(gt_frame_indices).union(set(pred_frame_indices)))
+    all_frame_indices = sorted(
+        list(set(gt_dets.data["frame_idx"]).union(set(pred_dets.data["frame_idx"])))
     )
 
     for frame_idx in all_frame_indices:
-        # Efficiently select detections for the current frame
-        gt_mask_t = gt_frame_indices == frame_idx
-        pred_mask_t = pred_frame_indices == frame_idx
-        gt_dets_t = gt_dets[gt_mask_t]
-        pred_dets_t = pred_dets[pred_mask_t]
+        gt_dets_t = gt_dets[gt_dets.data["frame_idx"] == frame_idx]
+        pred_dets_t = pred_dets[pred_dets.data["frame_idx"] == frame_idx]
 
-        pred_dets_t_filtered = (
-            pred_dets_t  # Start with original predictions for this frame
-        )
-        # Initialize boolean mask for predictions to keep
-        pred_keep_mask = np.ones(len(pred_dets_t), dtype=bool)
+        pred_dets_t_filtered = pred_dets_t  # Start with original predictions
 
-        # --- Step 1 & 2: Optionally remove tracker dets matching distractor GTs (Greedy Approach) ---
-        if remove_distractor_matches and len(gt_dets_t) > 0 and len(pred_dets_t) > 0:
-            # Identify GT detections that are specifically distractors
-            gt_distractor_mask = np.isin(gt_dets_t.class_id, MOT_DISTRACTOR_IDS)
-            gt_distractor_dets = gt_dets_t[gt_distractor_mask]
-
-            if len(gt_distractor_dets) > 0:
-                # Calculate IoU between all predictions and the distractor GTs
-                # Shape: (num_distractor_gt, num_pred)
+        # --- TrackEval Preprocessing Step 1 & 2: Optionally remove tracker dets matching distractor GTs ---
+        if remove_distractor_matches:  # Check the flag
+            to_remove_tracker_indices = np.array([], dtype=int)
+            if len(gt_dets_t) > 0 and len(pred_dets_t) > 0:
+                # Match all preds against all GTs for this frame
                 similarity = sv.detection.utils.box_iou_batch(
-                    gt_distractor_dets.xyxy, pred_dets_t.xyxy
+                    gt_dets_t.xyxy, pred_dets_t.xyxy
                 )
+                match_scores = similarity.copy()
+                match_scores[match_scores < iou_threshold - np.finfo("float").eps] = 0
 
-                # For each prediction, find its maximum IoU with any distractor GT
-                # similarity.max(axis=0) gives max IoU for each prediction column
-                max_iou_with_distractors = similarity.max(axis=0)
-
-                # Identify predictions whose max IoU with a distractor meets the threshold
-                # Use epsilon for float comparison robustness
-                matched_distractor_mask = (
-                    max_iou_with_distractors >= iou_threshold - np.finfo("float").eps
+                match_rows, match_cols = linear_sum_assignment(
+                    -match_scores
+                )  # Maximize score
+                valid_match_mask = (
+                    match_scores[match_rows, match_cols] > 0 + np.finfo("float").eps
                 )
+                match_rows = match_rows[valid_match_mask]
+                match_cols = match_cols[valid_match_mask]
 
-                # Update the keep mask: set to False for predictions matched to distractors
-                pred_keep_mask[matched_distractor_mask] = False
+                # Identify matches where GT is a distractor
+                matched_gt_classes = gt_dets_t.class_id[match_rows]
+                is_distractor_match = np.isin(matched_gt_classes, MOT_DISTRACTOR_IDS)
+                to_remove_tracker_indices = match_cols[is_distractor_match]
 
-            # Filter tracker detections for the frame based on the keep mask
-            if not np.all(pred_keep_mask): # Apply filter only if some predictions are removed
+            # Filter tracker detections for the frame
+            if len(to_remove_tracker_indices) > 0:
+                pred_keep_mask = np.ones(len(pred_dets_t), dtype=bool)
+                pred_keep_mask[to_remove_tracker_indices] = False
                 pred_dets_t_filtered = pred_dets_t[pred_keep_mask]
-            # else: No distractors or no predictions matched distractors above threshold
+            # else: pred_dets_t_filtered remains pred_dets_t
 
-        # --- Step 4: Remove unwanted GT dets ---
-        if len(gt_dets_t) > 0:
-            gt_is_pedestrian = gt_dets_t.class_id == MOT_PEDESTRIAN_ID
-            # Check if confidence (column 7) is effectively zero
-            gt_is_effectively_zero = np.abs(gt_dets_t.confidence) < ZERO_MARKED_EPSILON
-            # Also check against explicit ignore classes (redundant if remove_distractor_matches handled above, but safe)
-            gt_is_ignore_class = np.isin(gt_dets_t.class_id, MOT_IGNORE_IDS)
+        # --- TrackEval Preprocessing Step 4: Remove unwanted GT dets ---
+        gt_is_pedestrian = gt_dets_t.class_id == MOT_PEDESTRIAN_ID
 
-            # Keep GT if it IS a pedestrian AND it is NOT effectively zero-marked AND NOT an ignore class
-            gt_keep_mask = (
-                gt_is_pedestrian & ~gt_is_effectively_zero & ~gt_is_ignore_class
-            )
-            gt_dets_t_filtered = gt_dets_t[gt_keep_mask]
-        else:
-            gt_dets_t_filtered = gt_dets_t  # Keep empty if it was empty
+        # Refined check for zero_marked: Check if confidence is very close to 0
+        # This assumes the 'confidence' field holds the value from column 7 of gt.txt
+        gt_is_effectively_zero = np.abs(gt_dets_t.confidence) < ZERO_MARKED_EPSILON
+        # Also consider explicit ignore classes if needed (TrackEval sometimes does this separately)
+        # gt_is_ignore_class = np.isin(gt_dets_t.class_id, MOT_IGNORE_IDS) # Optional stricter ignore
+
+        # Keep GT if it IS a pedestrian AND it is NOT effectively zero-marked
+        gt_keep_mask = gt_is_pedestrian & ~gt_is_effectively_zero
+        # If also excluding ignore classes:
+        # gt_keep_mask = gt_is_pedestrian & ~gt_is_effectively_zero & ~gt_is_ignore_class
+
+        gt_dets_t_filtered = gt_dets_t[gt_keep_mask]
 
         # Append filtered detections for the frame
         if len(gt_dets_t_filtered) > 0:
@@ -530,11 +525,8 @@ def _preprocess_mot_sequence(
         sv.Detections.merge(pred_out_list) if pred_out_list else sv.Detections.empty()
     )
 
-    # --- Step 6: Relabel IDs ---
-    # Relabeling should happen *after* filtering is complete
-    print("Relabeling GT IDs...")
+    # --- TrackEval Preprocessing Step 6: Relabel IDs ---
     gt_processed = _relabel_ids(gt_processed)
-    print("Relabeling Prediction IDs...")
     pred_processed = _relabel_ids(pred_processed)
 
     return gt_processed, pred_processed
