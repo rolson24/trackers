@@ -1,7 +1,7 @@
 import json
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Union
 
 import cv2
 import numpy as np
@@ -369,7 +369,7 @@ def _evaluate_single_sequence(
             gt_data, seq_tracks_processed = dataset.preprocess(
                 gt_data_raw,
                 seq_tracks,
-                iou_threshold=0.5, # Standard threshold for MOT preprocessing matching
+                iou_threshold=0.5,  # Standard threshold for MOT preprocessing matching
                 remove_distractor_matches=preprocess_remove_distractor_matches,
             )
             print(
@@ -385,7 +385,9 @@ def _evaluate_single_sequence(
             gt_data = gt_data_raw
             seq_tracks_processed = seq_tracks
     else:
-        print(f"Skipping dataset preprocessing for sequence: {seq_name} (method not found)")
+        print(
+            f"Skipping dataset preprocessing for sequence: {seq_name} (method not found)"
+        )
     # --- End Preprocessing ---
 
     # Load sequence info (optional, might be needed by some metrics)

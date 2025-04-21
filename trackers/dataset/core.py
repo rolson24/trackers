@@ -5,7 +5,7 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import numpy as np
 import supervision as sv
-from scipy.optimize import linear_sum_assignment # Added import
+from scipy.optimize import linear_sum_assignment  # Added import
 
 # Import the relabel function from the new utils file
 from trackers.dataset.utils import _relabel_ids
@@ -585,7 +585,7 @@ class MOTChallengeDataset(Dataset):
 
         # --- Input Validation ---
         if (
-            gt_dets.data is None # Added check for None
+            gt_dets.data is None  # Added check for None
             or "frame_idx" not in gt_dets.data
             or gt_dets.tracker_id is None
             or gt_dets.class_id is None
@@ -596,7 +596,7 @@ class MOTChallengeDataset(Dataset):
             )
             return gt_dets, pred_dets
         if (
-            pred_dets.data is None # Added check for None
+            pred_dets.data is None  # Added check for None
             or "frame_idx" not in pred_dets.data
             or pred_dets.tracker_id is None
         ):
@@ -624,7 +624,9 @@ class MOTChallengeDataset(Dataset):
                         gt_dets_t.xyxy, pred_dets_t.xyxy
                     )
                     match_scores = similarity.copy()
-                    match_scores[match_scores < iou_threshold - np.finfo("float").eps] = 0
+                    match_scores[
+                        match_scores < iou_threshold - np.finfo("float").eps
+                    ] = 0
 
                     match_rows, match_cols = linear_sum_assignment(
                         -match_scores
@@ -637,7 +639,9 @@ class MOTChallengeDataset(Dataset):
 
                     # Identify matches where GT is a distractor
                     matched_gt_classes = gt_dets_t.class_id[match_rows]
-                    is_distractor_match = np.isin(matched_gt_classes, MOT_DISTRACTOR_IDS)
+                    is_distractor_match = np.isin(
+                        matched_gt_classes, MOT_DISTRACTOR_IDS
+                    )
                     to_remove_tracker_indices = match_cols[is_distractor_match]
 
                 # Filter tracker detections for the frame
@@ -673,7 +677,9 @@ class MOTChallengeDataset(Dataset):
             sv.Detections.merge(gt_out_list) if gt_out_list else sv.Detections.empty()
         )
         pred_processed = (
-            sv.Detections.merge(pred_out_list) if pred_out_list else sv.Detections.empty()
+            sv.Detections.merge(pred_out_list)
+            if pred_out_list
+            else sv.Detections.empty()
         )
 
         # --- TrackEval Preprocessing Step 6: Relabel IDs using the utility function ---
