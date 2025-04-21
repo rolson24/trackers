@@ -109,7 +109,7 @@ class CLEARMetric(TrackingMetric):
 
         # MOTAL (MOTA Log - reduces impact of high IDSW counts)
         # Use safe log10 calculation
-        safe_log_idsw = np.log10(res["IDSW"]) if res["IDSW"] > 0 else 0.0
+        safe_log_idsw = np.log10(res["IDSW"]) if res["IDSW"] > 0 else res["IDSW"]
         res["MOTAL"] = (res["CLR_TP"] - res["FP"] - safe_log_idsw) / np.maximum(
             1.0, res["CLR_TP"] + res["FN"]
         )
@@ -139,7 +139,7 @@ class CLEARMetric(TrackingMetric):
         ]
         for field in float_fields:
             # Ensure field exists and replace potential NaN with 0.0
-            res[field] = float(np.nan_to_num(res.get(field, 0.0)))
+            res.setdefault(field, 0.0)
 
         return res
 
@@ -466,14 +466,9 @@ class CLEARMetric(TrackingMetric):
         valid_gt_indices_mask: np.ndarray = gt_id_frame_count > 0
         if np.any(valid_gt_indices_mask):
             # Calculate the ratio of frames a GT ID was matched vs. frames it appeared
-            # Use np.divide to handle potential division by zero safely (though mask should prevent it)
-            tracked_ratio: np.ndarray = np.divide(
-                gt_id_matched_count[valid_gt_indices_mask],
-                gt_id_frame_count[valid_gt_indices_mask],
-                out=np.zeros_like(
-                    gt_id_matched_count[valid_gt_indices_mask], dtype=float
-                ),
-                where=gt_id_frame_count[valid_gt_indices_mask] != 0,
+            tracked_ratio = (
+                gt_id_matched_count[valid_gt_indices_mask]
+                / gt_id_frame_count[valid_gt_indices_mask]
             )
 
             # Mostly Tracked (MT): Ratio > threshold
