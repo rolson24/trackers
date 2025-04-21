@@ -33,7 +33,8 @@ def _relabel_ids(detections: sv.Detections) -> sv.Detections:
         unique_ids = np.unique(detections.tracker_id[valid_ids_mask].astype(int))
     except ValueError:
         print(
-            "Warning: Could not convert tracker IDs to integers during relabeling. Skipping."
+            "Warning: Could not convert tracker IDs to integers during relabeling. "
+            "Skipping."
         )
         return detections
 
@@ -49,7 +50,8 @@ def _relabel_ids(detections: sv.Detections) -> sv.Detections:
     offset = 0
     if min_id < 0:
         print(
-            f"Warning: Negative tracker IDs found ({min_id}). Shifting IDs for relabeling."
+            f"Warning: Negative tracker IDs found ({min_id}). "
+            "Shifting IDs for relabeling."
         )
         offset = -min_id
         max_id += offset  # Adjust max_id after offset calculation
@@ -72,7 +74,8 @@ def _relabel_ids(detections: sv.Detections) -> sv.Detections:
         original_id = int(detections.tracker_id[i]) + offset  # Apply offset
         if original_id >= map_size or original_id < 0:  # Bounds check
             print(
-                f"Warning: Original ID {original_id - offset} out of bounds for map during relabeling. Skipping ID."
+                f"Warning: Original ID {original_id - offset} out of bounds for map "
+                "during relabeling. Skipping ID."
             )
             continue
 
@@ -88,7 +91,8 @@ def _relabel_ids(detections: sv.Detections) -> sv.Detections:
         new_ids[valid_ids_mask] == -1
     ):  # Check only where IDs were originally valid
         print(
-            "Warning: Some valid tracker IDs could not be relabeled (check bounds warnings)."
+            "Warning: Some valid tracker IDs could not be relabeled "
+            "(check bounds warnings)."
         )
 
     detections.tracker_id = new_ids

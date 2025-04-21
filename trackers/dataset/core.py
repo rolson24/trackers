@@ -95,7 +95,7 @@ class Dataset(abc.ABC):
             ground_truth (sv.Detections): Raw ground truth detections for a sequence.
             predictions (sv.Detections): Raw prediction detections for a sequence.
             iou_threshold (float): IoU threshold used for matching during preprocessing
-                                   (e.g., for removing predictions matching distractors).
+                                 (e.g., for removing predictions matching distractors).
             remove_distractor_matches (bool): Flag indicating whether to remove
                                               predictions matched to distractors.
 
@@ -210,7 +210,8 @@ class MOTChallengeDataset(Dataset):
                         width = float(parts[4])
                         height = float(parts[5])
                         # --- Ensure 7th column (index 6) is assigned to confidence ---
-                        # This value often represents visibility/ignore flag in gt.txt (0=ignore)
+                        # This value often represents visibility/ignore flag in gt.txt
+                        # (0=ignore)
                         # or detection confidence in det.txt
                         confidence = float(parts[6])
                         # --- End Verification ---
@@ -592,7 +593,9 @@ class MOTChallengeDataset(Dataset):
             or gt_dets.confidence is None
         ):
             print(
-                "Warning: GT detections missing required fields (frame_idx, tracker_id, class_id, confidence) for MOT preprocessing. Skipping."
+                "Warning: GT detections missing required fields "
+                "(frame_idx, tracker_id, class_id, confidence) for "
+                "MOT preprocessing. Skipping."
             )
             return gt_dets, pred_dets
         if (
@@ -601,7 +604,8 @@ class MOTChallengeDataset(Dataset):
             or pred_dets.tracker_id is None
         ):
             print(
-                "Warning: Prediction detections missing required fields (frame_idx, tracker_id) for MOT preprocessing. Skipping."
+                "Warning: Prediction detections missing required fields "
+                "(frame_idx, tracker_id) for MOT preprocessing. Skipping."
             )
             return gt_dets, pred_dets
 
@@ -615,7 +619,8 @@ class MOTChallengeDataset(Dataset):
 
             pred_dets_t_filtered = pred_dets_t  # Start with original predictions
 
-            # --- TrackEval Preprocessing Step 1 & 2: Optionally remove tracker dets matching distractor GTs ---
+            # --- TrackEval Preprocessing Step 1 & 2:
+            # Optionally remove tracker dets matching distractor GTs ---
             if remove_distractor_matches:  # Check the flag
                 to_remove_tracker_indices = np.array([], dtype=int)
                 if len(gt_dets_t) > 0 and len(pred_dets_t) > 0:
@@ -659,7 +664,8 @@ class MOTChallengeDataset(Dataset):
             # Also consider explicit ignore classes
             gt_is_ignore_class = np.isin(gt_dets_t.class_id, MOT_IGNORE_IDS)
 
-            # Keep GT if it IS a pedestrian AND it is NOT effectively zero-marked AND NOT an ignore class
+            # Keep GT if it IS a pedestrian AND it is NOT effectively zero-marked
+            # AND NOT an ignore class
             gt_keep_mask = (
                 gt_is_pedestrian & ~gt_is_effectively_zero & ~gt_is_ignore_class
             )

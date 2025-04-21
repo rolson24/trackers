@@ -137,7 +137,7 @@ def generate_tracks(
                 # Ensure image_path is not None before calling
                 if image_path is None:
                     print(
-                        "MOTChallengeDataset source requires 'image_path' in frame_info."
+                        "MOTChallengeDataset source requires 'image_path' in frame_info"
                     )
                     return sv.Detections.empty()
                 dets = detection_source.get_public_detections(image_path)
@@ -209,7 +209,7 @@ def generate_tracks(
         if tracks.tracker_id is None and len(tracks) > 0:
             print(
                 f"Tracker output for sequence {sequence_name}, frame {frame_idx} "
-                f"is missing 'tracker_id'. Assigning dummy ID -1. Evaluation might fail."
+                f"is missing 'tracker_id'. Assigning dummy ID -1. Evaluation might fail"
             )
             tracks.tracker_id = np.full(len(tracks), -1, dtype=int)
         # --- End Validation ---
@@ -249,13 +249,13 @@ def generate_tracks(
                         frame = image_loader(image_path)
                     except Exception as e:
                         print(
-                            f"Failed to load image for frame {frame_idx} ({image_path}): {e}. "
-                            f"Proceeding without image."
+                            f"Failed to load image for frame {frame_idx} "
+                            f"({image_path}): {e}. Proceeding without image."
                         )
                         # Tracker/detector must handle None frame if this occurs
                 else:
                     print(
-                        f"Frame {frame_idx} in sequence {seq_name} missing 'image_path'. "
+                        f"Frame {frame_idx} in sequence {seq_name} missing 'image_path'"
                         f"Proceeding without image."
                     )
 
@@ -291,11 +291,13 @@ def generate_tracks(
                     if saved:
                         print(f"Saved tracks for {seq_name} to {output_dir}")
             else:
-                # Merging resulted in empty detections (shouldn't happen if list wasn't empty)
+                # Merging resulted in empty detections
+                # (shouldn't happen if list wasn't empty)
                 print(f"Merging detections for {seq_name} resulted in empty object.")
                 all_tracks[seq_name] = sv.Detections.empty()
         elif sequence_had_frames:
-            # Sequence had frames, but list is empty (due to error or no tracks generated)
+            # Sequence had frames, but list is empty
+            # (due to error or no tracks generated)
             print(f"No tracks generated or saved for sequence {seq_name}.")
             all_tracks[seq_name] = sv.Detections.empty()
         else:
@@ -346,7 +348,9 @@ def _evaluate_single_sequence(
                 f"No ground truth found for sequence {seq_name}. Skipping evaluation."
             )
             # Create error results for all expected metrics
-            error_result = {"error": "Ground truth not found"}
+            error_result: Dict[str, Union[float, str]] = {
+                "error": "Ground truth not found"
+            }
             return {
                 metric_name: error_result
                 for metric_name in list(metrics_to_compute.keys()) + placeholder_metrics
@@ -391,7 +395,8 @@ def _evaluate_single_sequence(
             seq_tracks_processed = seq_tracks
     else:
         print(
-            f"Skipping dataset preprocessing for sequence: {seq_name} (method not found)"
+            f"Skipping dataset preprocessing for sequence: {seq_name} "
+            "(method not found)"
         )
     # --- End Preprocessing ---
 
@@ -415,8 +420,8 @@ def _evaluate_single_sequence(
             or "frame_idx" not in seq_tracks_processed.data
         ):
             print(
-                f"Processed tracks for sequence {seq_name} are missing 'frame_idx' in data. "
-                f"Evaluation might fail or be incorrect."
+                f"Processed tracks for sequence {seq_name} are missing 'frame_idx' "
+                f"in data. Evaluation might fail or be incorrect."
             )
     # --- End Validation ---
 
@@ -433,7 +438,7 @@ def _evaluate_single_sequence(
             # Ensure output is a dictionary
             if not isinstance(metric_output, dict):
                 print(
-                    f"Metric '{metric_name}' compute returned non-dict: {metric_output}. "
+                    f"Metric '{metric_name}' compute returned non-dict: {metric_output}"
                     f"Wrapping in default key '{metric_name}'."
                 )
                 # Attempt to wrap if possible, otherwise report error
@@ -446,7 +451,13 @@ def _evaluate_single_sequence(
                         "error": f"Invalid non-dict output: {metric_output}"
                     }
             else:
-                seq_results_for_this_seq[metric_name] = metric_output
+                # metric_output is a dict. Mypy reports it as Dict[str, float].
+                # Create a new dict explicitly typed as Dict[str, Union[float, str]]
+                # to satisfy the type checker for the assignment below.
+                typed_metric_output: Dict[str, Union[float, str]] = {
+                    k: v for k, v in metric_output.items()
+                }
+                seq_results_for_this_seq[metric_name] = typed_metric_output
             # Log summary of results or just confirmation
             # Use repr for concise logging of dict content
             print(
@@ -506,18 +517,21 @@ def _aggregate_results(
                 if "error" in res:
                     num_errors += 1
                 else:
-                    # Attempt to convert values to float for aggregation, skip dict if fails
+                    # Attempt to convert values to float for aggregation,
+                    # skip dict if fails
                     try:
                         float_res = {
                             k: float(v)
                             for k, v in res.items()
                             if isinstance(v, (int, float))
                         }
-                        # Check if essential keys expected by aggregate are present (optional, depends on metric)
+                        # Check if essential keys expected by aggregate are present
+                        # (optional, depends on metric)
                         valid_seq_outputs.append(float_res)
                     except (ValueError, TypeError):
                         print(
-                            f"Could not convert sequence result to float dict for {metric_name}: {res}"
+                            f"Could not convert sequence result to float dict for "
+                            f"{metric_name}: {res}"
                         )
                         num_errors += 1
             else:
@@ -613,7 +627,8 @@ def evaluate_tracks(
     """
     if tracks is None and tracks_path is None:
         raise ValueError(
-            "Either tracks (Dict[str, sv.Detections]) or tracks_path (str/Path) must be provided"
+            "Either tracks (Dict[str, sv.Detections]) or tracks_path (str/Path)"
+            " must be provided"
         )
     if tracks is not None and tracks_path is not None:
         print("Both 'tracks' and 'tracks_path' provided. Using 'tracks' dictionary.")
@@ -802,10 +817,10 @@ def evaluate_tracker(
         ...         metrics=["CLEAR", "Count"], # Evaluate CLEAR and Count metrics
         ...         cache_tracks=True,          # Cache the generated tracks
         ...         cache_dir="./eval_cache",     # Directory for caching
-        ...         preprocess_remove_distractor_matches=True # Use default preprocessing
+        ...         preprocess_remove_distractor_matches=True # Default preprocessing
         ...     )
         ...     # Print the overall CLEAR results
-        ...     print(results.get("overall", {}).get("CLEAR", "CLEAR results not found")) # doctest: +SKIP
+        ...     print(results.get("overall",{}).get("CLEAR", "CLEAR results not found"))
         ... else:
         ...     print(f"Dataset path not found: {dataset_path}") # doctest: +SKIP
 
@@ -864,7 +879,7 @@ def evaluate_tracker(
 
 # --- Example Usage (Illustrative) ---
 if __name__ == "__main__":
-    from trackers import MOTChallengeDataset, SORTTracker
+    from trackers import SORTTracker
 
     # 1. Instantiate a dataset object
     try:
@@ -947,13 +962,14 @@ if __name__ == "__main__":
                 dataset=mot_dataset,
                 tracks_path=cache_dir_default,  # Point to the cache directory
                 metrics=["Count", "CLEAR"],  # Evaluate subset from cache
-                preprocess_remove_distractor_matches=True,  # Match the preprocessing used when generating cache
+                preprocess_remove_distractor_matches=True,
             )
             print("\n--- Cached Evaluation Results (Count, CLEAR only) ---")
             print(json.dumps(results_from_cache, indent=2))
         else:
             print(
-                f"Cache directory '{cache_dir_default}' not found, skipping cached evaluation."
+                f"Cache directory '{cache_dir_default}' not found, "
+                "skipping cached evaluation."
             )
         # --- End cached evaluation ---
 

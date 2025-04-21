@@ -81,7 +81,8 @@ class CLEARMetric(TrackingMetric):
             res.setdefault(key, 0.0)
 
         # --- Calculate intermediate sums (used in multiple metrics) ---
-        # Note: Using res[...] directly as requested, avoiding intermediate vars like num_gt_dets
+        # Note: Using res[...] directly as requested,
+        # avoiding intermediate vars like num_gt_dets
         # num_gt_dets = res["CLR_TP"] + res["FN"]
         # num_tracker_dets = res["CLR_TP"] + res["FP"]
         num_gt_ids = res["MT"] + res["ML"] + res["PT"]
@@ -278,9 +279,11 @@ class CLEARMetric(TrackingMetric):
                 max_gt_id = np.max(unique_gt_ids_in_input)
                 if np.isnan(max_gt_id):
                     print(
-                        "NaN found in ground truth tracker IDs. Results may be inaccurate."
+                        "NaN found in ground truth tracker IDs. "
+                        "Results may be inaccurate."
                     )
-                    # Attempt to filter NaNs if necessary, though preprocessing should handle this
+                    # Attempt to filter NaNs if necessary,
+                    # though preprocessing should handle this
                     valid_ids = unique_gt_ids_in_input[
                         ~np.isnan(unique_gt_ids_in_input)
                     ]
@@ -326,7 +329,8 @@ class CLEARMetric(TrackingMetric):
                 valid_gt_ids_mask = (gt_ids_t >= 0) & (gt_ids_t < num_gt_ids)
                 if not np.all(valid_gt_ids_mask):
                     print(
-                        f"Frame {frame_idx}: GT IDs out of expected range [0, {num_gt_ids - 1}]. Clamping."
+                        f"Frame {frame_idx}: GT IDs out of expected range "
+                        f"[0, {num_gt_ids - 1}]. Clamping."
                     )
                     gt_ids_t = np.clip(
                         gt_ids_t, 0, num_gt_ids - 1
@@ -361,7 +365,8 @@ class CLEARMetric(TrackingMetric):
             # Build score matrix incorporating IoU and continuity bonus
 
             # 1. Calculate continuity bonus matrix
-            # Bonus applied if a prediction ID matches the ID tracked by the GT in the previous step
+            # Bonus applied if a prediction ID matches the ID tracked by
+            # the GT in the previous step
             current_timestep_pred_ids: np.ndarray = pred_ids_t[
                 np.newaxis, :
             ]  # Shape (1, num_pred)
@@ -369,7 +374,8 @@ class CLEARMetric(TrackingMetric):
             gt_prev_timestep_ids: np.ndarray = prev_timestep_tracker_id[
                 gt_ids_t[:, np.newaxis]
             ]  # Shape (num_gt, 1)
-            # Boolean matrix (num_gt, num_pred): True where pred ID matches GT's previous timestep ID
+            # Boolean matrix (num_gt, num_pred):
+            # True where pred ID matches GT's previous timestep ID
             matches_prev_step: np.ndarray = (
                 current_timestep_pred_ids == gt_prev_timestep_ids
             ) & (~np.isnan(gt_prev_timestep_ids))  # Ensure previous ID was valid
@@ -379,7 +385,8 @@ class CLEARMetric(TrackingMetric):
             score_mat: np.ndarray = matches_prev_step * _CONTINUITY_BONUS + similarity
 
             # 3. Apply IoU threshold
-            # Zero out entries where IoU is below threshold (unless continuity bonus applied)
+            # Zero out entries where IoU is below threshold
+            # (unless continuity bonus applied)
             # Use epsilon for float comparison robustness (like TrackEval)
             score_mat[similarity < self.iou_threshold - np.finfo("float").eps] = 0.0
 
@@ -419,12 +426,13 @@ class CLEARMetric(TrackingMetric):
                 # Use the original 'similarity' matrix here, not the thresholded one
                 res["MOTP_sum"] += similarity[match_rows, match_cols].sum()
 
-                # Get the actual GT IDs (0-based indices) and Tracker IDs involved in matches
+                # Get the actual GT IDs (0-based indices) and Tracker IDs for matching
                 matched_gt_indices = gt_ids_t[match_rows]
                 matched_tracker_ids = pred_ids_t[match_cols]
 
                 # --- ID Switch Calculation ---
-                # Compare current matched tracker ID with the *last known* matched ID for this GT ID
+                # Compare current matched tracker ID with
+                # the *last known* matched ID for this GT ID
                 prev_matched_tracker_ids: np.ndarray = prev_tracker_id[
                     matched_gt_indices
                 ]
@@ -438,7 +446,8 @@ class CLEARMetric(TrackingMetric):
                 # --- End ID Switch Calculation ---
 
                 # --- Update Tracking State for Next Frame ---
-                # Fragmentation: Increment count if GT ID is matched now but was *not* matched in the previous step
+                # Fragmentation: Increment count if GT ID is matched now
+                # but was *not* matched in the previous step
                 was_not_matched_prev: np.ndarray = np.logical_not(
                     matched_in_prev_step[matched_gt_indices]
                 )
@@ -447,7 +456,8 @@ class CLEARMetric(TrackingMetric):
                 # Update matched count for this GT ID (used for MT/ML/PT)
                 gt_id_matched_count[matched_gt_indices] += 1
 
-                # Update the *last known* tracker ID for this GT ID (used for future IDSW checks)
+                # Update the *last known* tracker ID for this GT ID
+                # (used for future IDSW checks)
                 prev_tracker_id[matched_gt_indices] = matched_tracker_ids
                 # --- End Update Tracking State ---
 
@@ -590,10 +600,12 @@ class CLEARMetric(TrackingMetric):
             else:
                 # Should not happen if fields lists are correct
                 print(
-                    f"Field '{field}' not found in integer or float field lists during aggregation."
+                    f"Field '{field}' not found in integer or float field lists "
+                    "during aggregation."
                 )
 
-        # Ensure MOTP_sum (which is in float_fields but also summed) is correctly represented
+        # Ensure MOTP_sum (which is in float_fields but also summed) is
+        # correctly represented
         result_dict["MOTP_sum"] = aggregated_counts.get("MOTP_sum", 0.0)
 
         return result_dict
