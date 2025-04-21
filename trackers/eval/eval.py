@@ -493,8 +493,8 @@ def _preprocess_mot_sequence(
                 valid_match_mask = (
                     match_scores[match_rows, match_cols] > 0 + np.finfo("float").eps
                 )
-                match_rows = match_rows[valid_match_mask] # Indices into gt_ignore_dets
-                match_cols = match_cols[valid_match_mask] # Indices into pred_dets_t
+                match_rows = match_rows[valid_match_mask]  # Indices into gt_ignore_dets
+                match_cols = match_cols[valid_match_mask]  # Indices into pred_dets_t
 
                 # Identify matches where the matched GT (from gt_ignore_dets) is a distractor
                 # Use gt_ignore_dets.class_id, indexed by match_rows
