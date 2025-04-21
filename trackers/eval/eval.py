@@ -268,9 +268,7 @@ def generate_tracks(
             print(f"Skipping remaining frames for sequence {seq_name} due to error.")
             sequence_detections_list = []  # Discard partial results for this sequence
         except Exception as e:  # Catch other unexpected errors
-            print(
-                f"Unexpected error during processing sequence {seq_name}: {e}"
-            )
+            print(f"Unexpected error during processing sequence {seq_name}: {e}")
             print(f"Skipping remaining frames for sequence {seq_name} due to error.")
             sequence_detections_list = []  # Discard partial results
 
