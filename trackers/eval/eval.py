@@ -483,14 +483,16 @@ def _preprocess_mot_sequence(
             match_scores[match_scores < iou_threshold - np.finfo("float").eps] = 0.0
 
             # Use Hungarian algorithm to find best matches
-            match_rows, match_cols = linear_sum_assignment(-match_scores) # Maximize score
+            match_rows, match_cols = linear_sum_assignment(
+                -match_scores
+            )  # Maximize score
 
             # Filter matches based on the thresholded score
             valid_match_mask = (
                 match_scores[match_rows, match_cols] > 0.0 + np.finfo("float").eps
             )
-            match_rows = match_rows[valid_match_mask] # Indices into gt_dets_t
-            match_cols = match_cols[valid_match_mask] # Indices into pred_dets_t
+            match_rows = match_rows[valid_match_mask]  # Indices into gt_dets_t
+            match_cols = match_cols[valid_match_mask]  # Indices into pred_dets_t
 
             # Identify matches where the matched GT object is a distractor
             if len(match_rows) > 0:
