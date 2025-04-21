@@ -496,7 +496,9 @@ def _preprocess_mot_sequence(
                 pred_keep_mask[matched_distractor_mask] = False
 
             # Filter tracker detections for the frame based on the keep mask
-            if not np.all(pred_keep_mask): # Apply filter only if some predictions are removed
+            if not np.all(
+                pred_keep_mask
+            ):  # Apply filter only if some predictions are removed
                 pred_dets_t_filtered = pred_dets_t[pred_keep_mask]
             # else: No distractors or no predictions matched distractors above threshold
 
