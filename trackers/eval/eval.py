@@ -269,8 +269,7 @@ def generate_tracks(
             sequence_detections_list = []  # Discard partial results for this sequence
         except Exception as e:  # Catch other unexpected errors
             print(
-                f"Unexpected error during processing sequence {seq_name}: {e}",
-                exc_info=True,  # Log traceback
+                f"Unexpected error during processing sequence {seq_name}: {e}"
             )
             print(f"Skipping remaining frames for sequence {seq_name} due to error.")
             sequence_detections_list = []  # Discard partial results
@@ -633,7 +632,6 @@ def _evaluate_single_sequence(
             print(
                 f"Error during MOT preprocessing for {seq_name}: {e}. "
                 f"Attempting evaluation with raw data.",
-                exc_info=True,
             )
             # Fallback to using raw data if preprocessing fails
             gt_data = gt_data_raw
