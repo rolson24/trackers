@@ -491,8 +491,10 @@ def _preprocess_mot_sequence(
 
             # Filter tracker detections for the frame
             if len(to_remove_tracker_indices) > 0:
-                print(f"Removing {len(to_remove_tracker_indices)} tracker detections "
-                      f"matched to distractor GTs in frame {frame_idx}.")
+                print(
+                    f"Removing {len(to_remove_tracker_indices)} tracker detections "
+                    f"matched to distractor GTs in frame {frame_idx}."
+                )
                 pred_keep_mask = np.ones(len(pred_dets_t), dtype=bool)
                 pred_keep_mask[to_remove_tracker_indices] = False
                 pred_dets_t_filtered = pred_dets_t[pred_keep_mask]
