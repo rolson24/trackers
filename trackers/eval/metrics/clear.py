@@ -360,7 +360,14 @@ class CLEARMetric(TrackingMetric):
             # --- Matching Logic (Hungarian Algorithm based on TrackEval) ---
             # Build score matrix incorporating IoU and continuity bonus
 
-            # 1. Calculate continuity bonus matrix
+            # 1. Apply IoU threshold to the similarity matrix first
+            # Use epsilon for float comparison robustness (like TrackEval)
+            thresholded_similarity = similarity.copy()
+            thresholded_similarity[
+                similarity < self.iou_threshold - np.finfo("float").eps
+            ] = 0.0
+
+            # 2. Calculate continuity bonus matrix
             # Bonus applied if a prediction ID matches the ID tracked by the GT in the previous step
             current_timestep_pred_ids: np.ndarray = pred_ids_t[
                 np.newaxis, :
@@ -374,14 +381,11 @@ class CLEARMetric(TrackingMetric):
                 current_timestep_pred_ids == gt_prev_timestep_ids
             ) & (~np.isnan(gt_prev_timestep_ids))  # Ensure previous ID was valid
 
-            # 2. Combine bonus and similarity
-            # Score is high if continuity bonus applies, otherwise it's just IoU
-            score_mat: np.ndarray = matches_prev_step * _CONTINUITY_BONUS + similarity
-
-            # 3. Apply IoU threshold
-            # Zero out entries where IoU is below threshold (unless continuity bonus applied)
-            # Use epsilon for float comparison robustness (like TrackEval)
-            score_mat[similarity < self.iou_threshold - np.finfo("float").eps] = 0.0
+            # 3. Combine bonus and thresholded similarity
+            # Score is high if continuity bonus applies, otherwise it's the thresholded IoU
+            score_mat: np.ndarray = (
+                matches_prev_step * _CONTINUITY_BONUS + thresholded_similarity
+            )
 
             # 4. Solve assignment problem using Hungarian algorithm
             # linear_sum_assignment finds the minimum cost assignment. Since we want
@@ -416,6 +420,7 @@ class CLEARMetric(TrackingMetric):
             matched_tracker_ids: np.ndarray = np.array([], dtype=int)
             if num_matches > 0:
                 # MOTP sum uses the raw IoU similarity (without bonus) of matched pairs
+                # Use the original 'similarity' matrix here, not the thresholded one
                 res["MOTP_sum"] += similarity[match_rows, match_cols].sum()
 
                 # Get the actual GT IDs (0-based indices) and Tracker IDs involved in matches
