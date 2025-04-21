@@ -6,7 +6,6 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 import cv2
 import numpy as np
 import supervision as sv
-from scipy.optimize import linear_sum_assignment
 
 from trackers.core.base import BaseTracker
 from trackers.dataset.core import Dataset, MOTChallengeDataset
@@ -500,7 +499,9 @@ def _preprocess_mot_sequence(
                 pred_keep_mask[matched_distractor_mask] = False
 
             # Filter tracker detections for the frame based on the keep mask
-            if not np.all(pred_keep_mask): # Apply filter only if some predictions are removed
+            if not np.all(
+                pred_keep_mask
+            ):  # Apply filter only if some predictions are removed
                 pred_dets_t_filtered = pred_dets_t[pred_keep_mask]
             # else: No distractors or no predictions matched distractors above threshold
 
