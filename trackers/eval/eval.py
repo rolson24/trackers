@@ -241,7 +241,6 @@ def generate_tracks(
                     # Reset tracker state for the first frame of each sequence
                     tracker_source.reset()
 
-
                 # Load the frame image
                 frame: Optional[np.ndarray] = None
                 image_path: Optional[str] = frame_info.get("image_path")
