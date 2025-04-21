@@ -5,6 +5,22 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import numpy as np
 import supervision as sv
+from scipy.optimize import linear_sum_assignment # Added import
+
+# Import the relabel function from the new utils file
+from trackers.dataset.utils import _relabel_ids
+
+# --- Define MOT Constants needed for preprocessing ---
+MOT_PEDESTRIAN_ID = 1
+MOT_DISTRACTOR_IDS = [
+    2,
+    7,
+    8,
+    12,
+]  # person_on_vehicle, static_person, distractor, reflection
+MOT_IGNORE_IDS = [2, 7, 8, 12, 13]  # Includes crowd (13) for ignore, adjust as needed
+ZERO_MARKED_EPSILON = 1e-5
+# --- End MOT Constants ---
 
 
 # --- Base Dataset ---
@@ -58,6 +74,34 @@ class Dataset(abc.ABC):
             Dictionaries, each representing a frame. Each dictionary should
             contain at least 'frame_idx' (int, typically 1-based) and
             'image_path' (str, absolute path recommended).
+        """
+        pass
+
+    @abc.abstractmethod
+    def preprocess(
+        self,
+        ground_truth: sv.Detections,
+        predictions: sv.Detections,
+        iou_threshold: float = 0.5,
+        remove_distractor_matches: bool = True,
+    ) -> Tuple[sv.Detections, sv.Detections]:
+        """
+        Applies dataset-specific preprocessing steps to ground truth and predictions.
+
+        This typically involves filtering unwanted annotations (e.g., distractors,
+        zero-marked GTs) and potentially relabeling IDs.
+
+        Args:
+            ground_truth (sv.Detections): Raw ground truth detections for a sequence.
+            predictions (sv.Detections): Raw prediction detections for a sequence.
+            iou_threshold (float): IoU threshold used for matching during preprocessing
+                                   (e.g., for removing predictions matching distractors).
+            remove_distractor_matches (bool): Flag indicating whether to remove
+                                              predictions matched to distractors.
+
+        Returns:
+            Tuple[sv.Detections, sv.Detections]: A tuple containing the processed
+            ground truth detections and processed prediction detections.
         """
         pass
 
@@ -503,5 +547,139 @@ class MOTChallengeDataset(Dataset):
         return (self._public_detections or {}).get(
             abs_image_path, sv.Detections.empty()
         )
+
+    def preprocess(
+        self,
+        gt_dets: sv.Detections,
+        pred_dets: sv.Detections,
+        iou_threshold: float = 0.5,
+        remove_distractor_matches: bool = True,
+    ) -> Tuple[sv.Detections, sv.Detections]:
+        """
+        Applies MOT specific preprocessing based on TrackEval logic.
+
+        1. Optionally removes tracker detections matched to ground truth distractors.
+        2. Removes ground truth annotations marked as distractors or "zero-marked".
+        3. Relabels ground truth and (processed) prediction `tracker_id`s to be
+           contiguous and 0-based using the utility function.
+
+        Requires GT detections to have `frame_idx`, `tracker_id`, `class_id`, and
+        `confidence` (where confidence corresponds to MOT `gt.txt` column 7).
+        Requires prediction detections to have `frame_idx` and `tracker_id`.
+
+        Args:
+            gt_dets (sv.Detections): Raw ground truth detections.
+            pred_dets (sv.Detections): Raw prediction detections.
+            iou_threshold (float): IoU threshold used for matching predictions to
+                distractors. Defaults to 0.5.
+            remove_distractor_matches (bool): If True, remove predictions matched to
+                GT distractors/ignored classes. Defaults to True.
+
+        Returns:
+            Tuple[sv.Detections, sv.Detections]: A tuple containing the processed
+            ground truth detections and processed prediction detections. Returns
+            original inputs if required fields are missing.
+        """
+        gt_out_list = []
+        pred_out_list = []
+
+        # --- Input Validation ---
+        if (
+            gt_dets.data is None # Added check for None
+            or "frame_idx" not in gt_dets.data
+            or gt_dets.tracker_id is None
+            or gt_dets.class_id is None
+            or gt_dets.confidence is None
+        ):
+            print(
+                "Warning: GT detections missing required fields (frame_idx, tracker_id, class_id, confidence) for MOT preprocessing. Skipping."
+            )
+            return gt_dets, pred_dets
+        if (
+            pred_dets.data is None # Added check for None
+            or "frame_idx" not in pred_dets.data
+            or pred_dets.tracker_id is None
+        ):
+            print(
+                "Warning: Prediction detections missing required fields (frame_idx, tracker_id) for MOT preprocessing. Skipping."
+            )
+            return gt_dets, pred_dets
+
+        all_frame_indices = sorted(
+            list(set(gt_dets.data["frame_idx"]).union(set(pred_dets.data["frame_idx"])))
+        )
+
+        for frame_idx in all_frame_indices:
+            gt_dets_t = gt_dets[gt_dets.data["frame_idx"] == frame_idx]
+            pred_dets_t = pred_dets[pred_dets.data["frame_idx"] == frame_idx]
+
+            pred_dets_t_filtered = pred_dets_t  # Start with original predictions
+
+            # --- TrackEval Preprocessing Step 1 & 2: Optionally remove tracker dets matching distractor GTs ---
+            if remove_distractor_matches:  # Check the flag
+                to_remove_tracker_indices = np.array([], dtype=int)
+                if len(gt_dets_t) > 0 and len(pred_dets_t) > 0:
+                    # Match all preds against all GTs for this frame
+                    similarity = sv.detection.utils.box_iou_batch(
+                        gt_dets_t.xyxy, pred_dets_t.xyxy
+                    )
+                    match_scores = similarity.copy()
+                    match_scores[match_scores < iou_threshold - np.finfo("float").eps] = 0
+
+                    match_rows, match_cols = linear_sum_assignment(
+                        -match_scores
+                    )  # Maximize score
+                    valid_match_mask = (
+                        match_scores[match_rows, match_cols] > 0 + np.finfo("float").eps
+                    )
+                    match_rows = match_rows[valid_match_mask]
+                    match_cols = match_cols[valid_match_mask]
+
+                    # Identify matches where GT is a distractor
+                    matched_gt_classes = gt_dets_t.class_id[match_rows]
+                    is_distractor_match = np.isin(matched_gt_classes, MOT_DISTRACTOR_IDS)
+                    to_remove_tracker_indices = match_cols[is_distractor_match]
+
+                # Filter tracker detections for the frame
+                if len(to_remove_tracker_indices) > 0:
+                    pred_keep_mask = np.ones(len(pred_dets_t), dtype=bool)
+                    pred_keep_mask[to_remove_tracker_indices] = False
+                    pred_dets_t_filtered = pred_dets_t[pred_keep_mask]
+                # else: pred_dets_t_filtered remains pred_dets_t
+
+            # --- TrackEval Preprocessing Step 4: Remove unwanted GT dets ---
+            gt_is_pedestrian = gt_dets_t.class_id == MOT_PEDESTRIAN_ID
+
+            # Refined check for zero_marked: Check if confidence is very close to 0
+            gt_is_effectively_zero = np.abs(gt_dets_t.confidence) < ZERO_MARKED_EPSILON
+            # Also consider explicit ignore classes
+            gt_is_ignore_class = np.isin(gt_dets_t.class_id, MOT_IGNORE_IDS)
+
+            # Keep GT if it IS a pedestrian AND it is NOT effectively zero-marked AND NOT an ignore class
+            gt_keep_mask = (
+                gt_is_pedestrian & ~gt_is_effectively_zero & ~gt_is_ignore_class
+            )
+
+            gt_dets_t_filtered = gt_dets_t[gt_keep_mask]
+
+            # Append filtered detections for the frame
+            if len(gt_dets_t_filtered) > 0:
+                gt_out_list.append(gt_dets_t_filtered)
+            if len(pred_dets_t_filtered) > 0:
+                pred_out_list.append(pred_dets_t_filtered)
+
+        # Merge filtered detections across all frames
+        gt_processed = (
+            sv.Detections.merge(gt_out_list) if gt_out_list else sv.Detections.empty()
+        )
+        pred_processed = (
+            sv.Detections.merge(pred_out_list) if pred_out_list else sv.Detections.empty()
+        )
+
+        # --- TrackEval Preprocessing Step 6: Relabel IDs using the utility function ---
+        gt_processed = _relabel_ids(gt_processed)
+        pred_processed = _relabel_ids(pred_processed)
+
+        return gt_processed, pred_processed
 
     # --- End Methods for Public Detections ---
