@@ -241,7 +241,6 @@ def generate_tracks(
                 frame_idx: int = frame_info["frame_idx"]
                 frame_info["sequence_name"] = seq_name  # Add sequence name for context
 
-
                 # Load the frame image
                 frame: Optional[np.ndarray] = None
                 image_path: Optional[str] = frame_info.get("image_path")
