@@ -1,14 +1,14 @@
-import abc
 import configparser
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import numpy as np
 import supervision as sv
-from scipy.optimize import linear_sum_assignment  # Added import
+from scipy.optimize import linear_sum_assignment
 
 from trackers.dataset.base import Dataset
 from trackers.dataset.utils import _relabel_ids
+from trackers.log import get_logger
 
 # --- Define MOT Constants needed for preprocessing ---
 MOT_PEDESTRIAN_ID = 1
@@ -21,6 +21,8 @@ MOT_DISTRACTOR_IDS = [
 MOT_IGNORE_IDS = [2, 7, 8, 12, 13]  # Includes crowd (13) for ignore, adjust as needed
 ZERO_MARKED_EPSILON = 1e-5
 # --- End MOT Constants ---
+
+logger = get_logger(__name__)
 
 
 class MOTChallengeDataset(Dataset):
@@ -73,7 +75,7 @@ class MOTChallengeDataset(Dataset):
             if item.is_dir() and (item / "seqinfo.ini").exists():
                 sequences.append(item.name)
         if not sequences:
-            print(f"Warning: No valid MOTChallenge sequences found in {self.root_path}")
+            logger.warning(f"No valid MOTChallenge sequences found in {self.root_path}")
         return sorted(sequences)
 
     def _parse_mot_file(
@@ -113,8 +115,8 @@ class MOTChallengeDataset(Dataset):
 
                     parts = line.split(",")
                     if len(parts) < 7:
-                        print(
-                            f"Warning: Skipping malformed line in {file_path}: {line}"
+                        logger.warning(
+                            f"Skipping malformed line in {file_path}: {line}"
                         )
                         continue
 
@@ -151,16 +153,16 @@ class MOTChallengeDataset(Dataset):
                         frame_detections[frame_idx].append(detection)
 
                     except ValueError as ve:
-                        print(
-                            f"Warning: Skipping line with invalid numeric data in \
-                                {file_path}: {line} ({ve})"
+                        logger.warning(
+                            f"Skipping line with invalid numeric data in {file_path}: \
+                                {line} ({ve})"
                         )
                         continue
 
             return all_detections, frame_detections
 
         except Exception as e:
-            print(f"Error parsing MOT file {file_path}: {e}")
+            logger.error(f"Error parsing MOT file {file_path}: {e}")
             return [], {}
 
     def load_ground_truth(self, sequence_name: str) -> Optional[sv.Detections]:
@@ -181,9 +183,8 @@ class MOTChallengeDataset(Dataset):
         """
         gt_path = self.root_path / sequence_name / "gt" / "gt.txt"
         if not gt_path.exists():
-            print(
-                f"Warning: Ground truth file not found for sequence \
-                    {sequence_name} at {gt_path}"
+            logger.warning(
+                f"Ground truth file not found for sequence {sequence_name} at {gt_path}"
             )
             return None
 
@@ -191,7 +192,7 @@ class MOTChallengeDataset(Dataset):
             all_detections, _ = self._parse_mot_file(gt_path)
 
             if not all_detections:
-                print(f"Warning: No valid annotations found in {gt_path}")
+                logger.warning(f"No valid annotations found in {gt_path}")
                 return sv.Detections.empty()
 
             # Extract data from parsed detections
@@ -218,7 +219,7 @@ class MOTChallengeDataset(Dataset):
             )
 
         except Exception as e:
-            print(f"Error loading ground truth for {sequence_name}: {e}")
+            logger.error(f"Error loading ground truth for {sequence_name}: {e}")
             return None
 
     def get_sequence_names(self) -> List[str]:
@@ -243,7 +244,7 @@ class MOTChallengeDataset(Dataset):
         """
         seq_info_path = self.root_path / sequence_name / "seqinfo.ini"
         if not seq_info_path.exists():
-            print(f"Warning: seqinfo.ini not found for sequence {sequence_name}")
+            logger.warning(f"seqinfo.ini not found for sequence {sequence_name}")
             return {}
 
         config = configparser.ConfigParser()
@@ -278,10 +279,10 @@ class MOTChallengeDataset(Dataset):
                 # Filter out None values if keys weren't present
                 return {k: v for k, v in standard_info.items() if v is not None}
             else:
-                print(f"Warning: '[Sequence]' section not found in {seq_info_path}")
+                logger.warning(f"'[Sequence]' section not found in {seq_info_path}")
                 return {}
         except configparser.Error as e:
-            print(f"Error parsing {seq_info_path}: {e}")
+            logger.error(f"Error parsing {seq_info_path}: {e}")
             return {}
 
     def get_frame_iterator(self, sequence_name: str) -> Iterator[Dict[str, Any]]:
@@ -303,13 +304,11 @@ class MOTChallengeDataset(Dataset):
         """
         seq_info = self.get_sequence_info(sequence_name)
         num_frames = seq_info.get("seqLength")
-        img_dir = seq_info.get(
-            "img_dir"
-        )
+        img_dir = seq_info.get("img_dir")
 
         if num_frames is None or img_dir is None or not img_dir.is_dir():
-            print(
-                f"Warning: Could not determine frame count or image directory for \
+            logger.warning(
+                f"Could not determine frame count or image directory for \
                     {sequence_name}. Check seqinfo.ini."
             )
             return  # Return empty iterator
@@ -318,9 +317,9 @@ class MOTChallengeDataset(Dataset):
         first_frame_pattern = f"{1:06d}.*"
         potential_files = list(img_dir.glob(first_frame_pattern))
         if not potential_files:
-            print(
-                f"Warning: No image files found matching pattern \
-                    '{first_frame_pattern}' in {img_dir}"
+            logger.warning(
+                f"No image files found matching pattern '{first_frame_pattern}' \
+                    in {img_dir}"
             )
             # Try common extensions explicitly if glob fails
             if (img_dir / f"{1:06d}.jpg").exists():
@@ -328,19 +327,18 @@ class MOTChallengeDataset(Dataset):
             elif (img_dir / f"{1:06d}.png").exists():
                 img_ext = ".png"
             else:
-                print(
-                    f"Warning: Could not determine image extension for sequence \
-                        {sequence_name}."
+                logger.warning(
+                    f"Could not determine image extension for sequence {sequence_name}."
                 )
-                return 
+                return
         else:
             img_ext = potential_files[0].suffix
 
         for i in range(1, num_frames + 1):
-            frame_filename = f"{i:06d}{img_ext}" 
+            frame_filename = f"{i:06d}{img_ext}"
             frame_path = img_dir / frame_filename
             if not frame_path.exists():
-                print(f"Warning: Expected frame image not found: {frame_path}")
+                logger.warning(f"Expected frame image not found: {frame_path}")
                 # Decide whether to skip or raise error. Skipping for now.
                 continue
 
@@ -350,7 +348,6 @@ class MOTChallengeDataset(Dataset):
                     frame_path.resolve()
                 ),  # Use absolute path for reliable dict key
             }
-
 
     def load_public_detections(self, min_confidence: Optional[float] = None) -> None:
         """
@@ -363,7 +360,7 @@ class MOTChallengeDataset(Dataset):
             min_confidence: Optional minimum detection confidence score to include.
                             If None, all detections are loaded.
         """
-        print("Loading public detections...")
+        logger.info("Loading public detections...")
         self._public_detections = {}
         loaded_count = 0
         total_dets = 0
@@ -371,7 +368,7 @@ class MOTChallengeDataset(Dataset):
         for seq_name in self.get_sequence_names():
             det_path = self.root_path / seq_name / "det" / "det.txt"
             if not det_path.exists():
-                print(f"  Info: No det.txt found for sequence {seq_name}")
+                logger.info(f"No det.txt found for sequence {seq_name}")
                 continue
 
             try:
@@ -392,9 +389,9 @@ class MOTChallengeDataset(Dataset):
 
                 for frame_idx, detections in frame_detections.items():
                     if frame_idx not in frame_map:
-                        print(
-                            f"  Warning: Detections found for frame {frame_idx} \
-                                outside sequence length in {seq_name}. Skipping."
+                        logger.warning(
+                            f"Detections found for frame {frame_idx} outside sequence \
+                                length in {seq_name}. Skipping."
                         )
                         continue
 
@@ -411,18 +408,20 @@ class MOTChallengeDataset(Dataset):
                     )
                     seq_total_dets += len(detections)
 
-                print(f"  Loaded {seq_total_dets} detections for sequence {seq_name}")
+                logger.info(
+                    f"Loaded {seq_total_dets} detections for sequence {seq_name}"
+                )
                 total_dets += seq_total_dets
 
             except Exception as e:
-                print(f"  Error loading detections for sequence {seq_name}: {e}")
+                logger.error(f"Error loading detections for sequence {seq_name}: {e}")
 
-        print(
-            f"Finished loading public detections. Found {total_dets} \
-                detections across {loaded_count} sequences."
+        logger.info(
+            f"Finished loading public detections. Found {total_dets} detections \
+                across {loaded_count} sequences."
         )
         if not self._public_detections:
-            print("Warning: No public detections were loaded.")
+            logger.warning("No public detections were loaded.")
 
     @property
     def has_public_detections(self) -> bool:
@@ -445,9 +444,9 @@ class MOTChallengeDataset(Dataset):
             for this path or if `load_public_detections()` was not called.
         """
         if not self.has_public_detections:
-            print(
-                "Warning: Public detections requested but not loaded. \
-            # Call load_public_detections() first."
+            logger.warning(
+                "Public detections requested but not loaded. \
+                    Call load_public_detections() first."
             )
             return sv.Detections.empty()
 
@@ -494,14 +493,14 @@ class MOTChallengeDataset(Dataset):
 
         # --- Input Validation ---
         if (
-            gt_dets.data is None 
+            gt_dets.data is None
             or "frame_idx" not in gt_dets.data
             or gt_dets.tracker_id is None
             or gt_dets.class_id is None
             or gt_dets.confidence is None
         ):
-            print(
-                "Warning: GT detections missing required fields "
+            logger.warning(
+                "GT detections missing required fields "
                 "(frame_idx, tracker_id, class_id, confidence) for "
                 "MOT preprocessing. Skipping."
             )
@@ -511,8 +510,8 @@ class MOTChallengeDataset(Dataset):
             or "frame_idx" not in pred_dets.data
             or pred_dets.tracker_id is None
         ):
-            print(
-                "Warning: Prediction detections missing required fields "
+            logger.warning(
+                "Prediction detections missing required fields "
                 "(frame_idx, tracker_id) for MOT preprocessing. Skipping."
             )
             return gt_dets, pred_dets

@@ -1,6 +1,10 @@
 import numpy as np
 import supervision as sv
 
+from trackers.log import get_logger  # Added import
+
+logger = get_logger(__name__)  # Added logger instance
+
 
 def _relabel_ids(detections: sv.Detections) -> sv.Detections:
     """
@@ -30,9 +34,8 @@ def _relabel_ids(detections: sv.Detections) -> sv.Detections:
     try:
         unique_ids = np.unique(detections.tracker_id[valid_ids_mask].astype(int))
     except ValueError:
-        print(
-            "Warning: Could not convert tracker IDs to integers during relabeling. "
-            "Skipping."
+        logger.warning(
+            "Could not convert tracker IDs to integers during relabeling. Skipping."
         )
         return detections
 
@@ -45,15 +48,14 @@ def _relabel_ids(detections: sv.Detections) -> sv.Detections:
 
     offset = 0
     if min_id < 0:
-        print(
-            f"Warning: Negative tracker IDs found ({min_id}). "
-            "Shifting IDs for relabeling."
+        logger.warning(
+            f"Negative tracker IDs found ({min_id}). Shifting IDs for relabeling."
         )
         offset = -min_id
         max_id += offset
 
     if np.isnan(max_id):
-        print("Warning: Max ID is NaN during relabeling after offset. Skipping.")
+        logger.warning("Max ID is NaN during relabeling after offset. Skipping.")
         return detections
 
     map_size = int(max_id) + 1
@@ -67,8 +69,8 @@ def _relabel_ids(detections: sv.Detections) -> sv.Detections:
     for i in original_indices:
         original_id = int(detections.tracker_id[i]) + offset
         if original_id >= map_size or original_id < 0:
-            print(
-                f"Warning: Original ID {original_id - offset} out of bounds for map "
+            logger.warning(
+                f"Original ID {original_id - offset} out of bounds for map "
                 "during relabeling. Skipping ID."
             )
             continue
@@ -79,7 +81,6 @@ def _relabel_ids(detections: sv.Detections) -> sv.Detections:
             new_id_counter += 1
         else:
             new_ids[i] = id_map[original_id]
-
 
     detections.tracker_id = new_ids
     return detections
