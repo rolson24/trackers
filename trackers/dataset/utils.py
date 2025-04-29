@@ -6,7 +6,7 @@ from trackers.log import get_logger  # Added import
 logger = get_logger(__name__)  # Added logger instance
 
 
-def _relabel_ids(detections: sv.Detections) -> sv.Detections:
+def relabel_ids(detections: sv.Detections) -> sv.Detections:
     """
     Relabels `tracker_id`s to be contiguous integers starting from 0.
 
@@ -43,8 +43,8 @@ def _relabel_ids(detections: sv.Detections) -> sv.Detections:
         return detections
 
     # Now unique_ids contains only valid integers
-    max_id = np.max(unique_ids)
-    min_id = np.min(unique_ids)
+    max_id: int = np.max(unique_ids)
+    min_id: int = np.min(unique_ids)
 
     offset = 0
     if min_id < 0:

@@ -6,8 +6,8 @@ import numpy as np
 import supervision as sv
 from scipy.optimize import linear_sum_assignment
 
-from trackers.dataset.base import Dataset
-from trackers.dataset.utils import _relabel_ids
+from trackers.dataset.base import EvaluationDataset
+from trackers.dataset.utils import relabel_ids
 from trackers.log import get_logger
 
 # --- Define MOT Constants needed for preprocessing ---
@@ -25,7 +25,7 @@ ZERO_MARKED_EPSILON = 1e-5
 logger = get_logger(__name__)
 
 
-class MOTChallengeDataset(Dataset):
+class MOTChallengeDataset(EvaluationDataset):
     """
     Dataset class for loading sequences in the MOTChallenge format.
     Handles parsing `seqinfo.ini`, `gt/gt.txt`, and optionally `det/det.txt`.
@@ -61,9 +61,8 @@ class MOTChallengeDataset(Dataset):
         if not self.root_path.is_dir():
             raise FileNotFoundError(f"Dataset path not found: {self.root_path}")
         self._sequence_names = self._find_sequences()
-        self._public_detections: Optional[Dict[str, sv.Detections]] = (
-            None  # Cache for public detections
-        )
+        self._public_detections: Dict[str, sv.Detections] = {}
+        self._frame_maps: Dict[str, Dict[int, str]] = {}
 
     def _find_sequences(self) -> List[str]:
         """
@@ -362,6 +361,7 @@ class MOTChallengeDataset(Dataset):
         """
         logger.info("Loading public detections...")
         self._public_detections = {}
+        self._frame_maps = {}
         loaded_count = 0
         total_dets = 0
 
@@ -386,6 +386,8 @@ class MOTChallengeDataset(Dataset):
                     info["frame_idx"]: info["image_path"]
                     for info in self.get_frame_iterator(seq_name)
                 }
+
+                self._frame_maps[seq_name] = frame_map
 
                 for frame_idx, detections in frame_detections.items():
                     if frame_idx not in frame_map:
@@ -429,7 +431,7 @@ class MOTChallengeDataset(Dataset):
         `load_public_detections`."""
         return self._public_detections is not None
 
-    def get_public_detections(self, image_path: str) -> sv.Detections:
+    def get_public_detections_from_image_path(self, image_path: str) -> sv.Detections:
         """
         Retrieves the loaded public detections associated with a specific image path.
 
@@ -455,6 +457,41 @@ class MOTChallengeDataset(Dataset):
         return (self._public_detections or {}).get(
             abs_image_path, sv.Detections.empty()
         )
+
+    def get_public_detections_from_frame_index(
+        self, sequence_name: str, frame_idx: int
+    ) -> sv.Detections:
+        """
+        Retrieves the loaded public detections for a specific frame index in a
+        sequence.
+        Requires `load_public_detections()` to have been called first.
+        Args:
+            sequence_name: The name of the sequence (e.g., 'MOT17-02-SDP').
+            frame_idx: The frame index (1-based).
+        Returns:
+            An sv.Detections object containing the public detections for the
+            specified frame index. Returns `sv.Detections.empty()` if no detections
+            were loaded for this frame or if `load_public_detections()` was not
+            called.
+        """
+        if not self.has_public_detections:
+            logger.warning(
+                "Public detections requested but not loaded. \
+                    Call load_public_detections() first."
+            )
+            return sv.Detections.empty()
+
+        frame_map = self._frame_maps.get(sequence_name, {})
+        abs_image_path = frame_map.get(frame_idx)
+
+        if abs_image_path is None:
+            logger.warning(
+                f"No public detections found for sequence {sequence_name} at frame \
+                {frame_idx}"
+            )
+            return sv.Detections.empty()
+
+        return self.get_public_detections_from_image_path(abs_image_path)
 
     def preprocess(
         self,
@@ -596,7 +633,7 @@ class MOTChallengeDataset(Dataset):
         )
 
         # --- TrackEval Preprocessing Step 6: Relabel IDs using the utility function ---
-        gt_processed = _relabel_ids(gt_processed)
-        pred_processed = _relabel_ids(pred_processed)
+        gt_processed = relabel_ids(gt_processed)
+        pred_processed = relabel_ids(pred_processed)
 
         return gt_processed, pred_processed

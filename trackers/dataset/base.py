@@ -5,7 +5,7 @@ import supervision as sv
 
 
 # --- Base Dataset ---
-class Dataset(abc.ABC):
+class EvaluationDataset(abc.ABC):
     """Abstract base class for datasets used in tracking evaluation."""
 
     @abc.abstractmethod
