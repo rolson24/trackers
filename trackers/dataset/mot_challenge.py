@@ -20,7 +20,7 @@ MOT_DISTRACTOR_IDS = [
 ]  # person_on_vehicle, static_person, distractor, reflection
 MOT_IGNORE_IDS = [2, 7, 8, 12, 13]  # Includes crowd (13) for ignore, adjust as needed
 ZERO_MARKED_EPSILON = 1e-5
-# --- End MOT Constants ---
+
 
 logger = get_logger(__name__)
 
@@ -141,7 +141,7 @@ class MOTChallengeDataset(EvaluationDataset):
                             "frame_idx": frame_idx,
                             "obj_id": obj_id,
                             "xyxy": [x, y, x + width, y + height],
-                            "confidence": confidence,  # Correctly assigned
+                            "confidence": confidence,
                             "class_id": class_id,
                         }
 
@@ -254,7 +254,6 @@ class MOTChallengeDataset(EvaluationDataset):
                 info: Dict[str, Union[int, float, str]] = {}
                 for key, value in config["Sequence"].items():
                     try:
-                        # Attempt to convert to int, then float, else keep as string
                         info[key] = int(value)
                     except ValueError:
                         try:
@@ -528,7 +527,6 @@ class MOTChallengeDataset(EvaluationDataset):
         gt_out_list = []
         pred_out_list = []
 
-        # --- Input Validation ---
         if (
             gt_dets.data is None
             or "frame_idx" not in gt_dets.data
@@ -563,8 +561,7 @@ class MOTChallengeDataset(EvaluationDataset):
 
             pred_dets_t_filtered = pred_dets_t
 
-            # --- TrackEval Preprocessing Step 1 & 2:
-            # Optionally remove tracker dets matching distractor GTs ---
+            # Optionally remove tracker dets matching distractor GTs
             if remove_distractor_matches:
                 to_remove_tracker_indices = np.array([], dtype=int)
                 if len(gt_dets_t) > 0 and len(pred_dets_t) > 0:
@@ -598,9 +595,8 @@ class MOTChallengeDataset(EvaluationDataset):
                     pred_keep_mask = np.ones(len(pred_dets_t), dtype=bool)
                     pred_keep_mask[to_remove_tracker_indices] = False
                     pred_dets_t_filtered = pred_dets_t[pred_keep_mask]
-                # else: pred_dets_t_filtered remains pred_dets_t
 
-            # --- TrackEval Preprocessing Step 4: Remove unwanted GT dets ---
+            # Remove unwanted GT dets
             gt_is_pedestrian = gt_dets_t.class_id == MOT_PEDESTRIAN_ID
 
             # Refined check for zero_marked: Check if confidence is very close to 0
@@ -632,7 +628,7 @@ class MOTChallengeDataset(EvaluationDataset):
             else sv.Detections.empty()
         )
 
-        # --- TrackEval Preprocessing Step 6: Relabel IDs using the utility function ---
+        # Relabel IDs using the utility function
         gt_processed = relabel_ids(gt_processed)
         pred_processed = relabel_ids(pred_processed)
 

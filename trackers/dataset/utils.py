@@ -1,9 +1,9 @@
 import numpy as np
 import supervision as sv
 
-from trackers.log import get_logger  # Added import
+from trackers.log import get_logger
 
-logger = get_logger(__name__)  # Added logger instance
+logger = get_logger(__name__)
 
 
 def relabel_ids(detections: sv.Detections) -> sv.Detections:
@@ -24,13 +24,13 @@ def relabel_ids(detections: sv.Detections) -> sv.Detections:
     if len(detections) == 0 or detections.tracker_id is None:
         return detections
 
-    # 1. Filter out potential NaN values first
+    # Filter out potential NaN values
     valid_ids_mask = ~np.isnan(detections.tracker_id)
     if not np.any(valid_ids_mask):
         # All IDs were NaN or array was empty after filtering
         return detections
 
-    # 2. Get unique integer IDs
+    # Get unique integer IDs
     try:
         unique_ids = np.unique(detections.tracker_id[valid_ids_mask].astype(int))
     except ValueError:
