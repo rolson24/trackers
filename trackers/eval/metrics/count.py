@@ -3,7 +3,10 @@ from typing import Any, Dict, List, Optional, Set, Union
 import supervision as sv
 
 from trackers.eval.metrics.base_tracking_metric import TrackingMetric
+from trackers.log import get_logger # Added import
 
+# Instantiate logger
+logger = get_logger(__name__)
 
 class CountMetric(TrackingMetric):
     """
@@ -102,8 +105,8 @@ class CountMetric(TrackingMetric):
                         pass
             else:
                 # Log or handle invalid sequence result format if necessary
-                print(
-                    f"Warning: Skipping invalid sequence result format during\
+                logger.warning(
+                    f"Skipping invalid sequence result format during\
                         Count aggregation: {seq_output}"
                 )
 

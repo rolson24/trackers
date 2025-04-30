@@ -5,11 +5,15 @@ import supervision as sv
 from scipy.optimize import linear_sum_assignment
 
 from trackers.eval.metrics.base_tracking_metric import TrackingMetric
+from trackers.log import get_logger # Added import
 
 # --- Constants ---
 _CONTINUITY_BONUS: float = 1000.0  # Bonus for matching the same ID as the previous step
 _MT_THRESHOLD: float = 0.8  # Threshold for Mostly Tracked (MT)
 _ML_THRESHOLD: float = 0.2  # Threshold for Mostly Lost (ML)
+
+# Instantiate logger
+logger = get_logger(__name__)
 
 
 class CLEARMetric(TrackingMetric):
@@ -265,7 +269,8 @@ class CLEARMetric(TrackingMetric):
                 # Add 1 because IDs are 0-based indices
                 max_gt_id = np.max(unique_gt_ids_in_input)
                 if np.isnan(max_gt_id):
-                    print(
+                    
+                    logger.warning(
                         "NaN found in ground truth tracker IDs. "
                         "Results may be inaccurate."
                     )
@@ -296,7 +301,7 @@ class CLEARMetric(TrackingMetric):
 
 
         # --- Frame-by-Frame Processing ---
-        print(f"Processing {len(all_frame_indices)} frames for CLEAR metrics...")
+        logger.info(f"Processing {len(all_frame_indices)} frames for CLEAR metrics...")
         for frame_idx in all_frame_indices:
             # Get detections for the current frame
             gt_dets_t: sv.Detections = ground_truth[
@@ -315,7 +320,8 @@ class CLEARMetric(TrackingMetric):
                 # Check bounds before indexing
                 valid_gt_ids_mask = (gt_ids_t >= 0) & (gt_ids_t < num_gt_ids)
                 if not np.all(valid_gt_ids_mask):
-                    print(
+                    
+                    logger.warning(
                         f"Frame {frame_idx}: GT IDs out of expected range "
                         f"[0, {num_gt_ids - 1}]. Clamping."
                     )
@@ -546,12 +552,14 @@ class CLEARMetric(TrackingMetric):
                         # Add the value, defaulting to 0.0 if key is missing
                         aggregated_counts[field] += seq_res.get(field, 0.0)
                 else:
-                    print(
+                    
+                    logger.warning(
                         f"Skipping sequence result due to missing or non-numeric "
                         f"summed fields during CLEAR aggregation: {seq_res}"
                     )
             else:
-                print(
+                
+                logger.warning(
                     f"Skipping invalid sequence result format (expected dict) "
                     f"during CLEAR aggregation: {seq_res}"
                 )
@@ -580,7 +588,8 @@ class CLEARMetric(TrackingMetric):
                 )
             else:
                 # Should not happen if fields lists are correct
-                print(
+                
+                logger.warning(
                     f"Field '{field}' not found in integer or float field lists "
                     "during aggregation."
                 )
