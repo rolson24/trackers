@@ -105,6 +105,33 @@ class DeepSORTFeatureExtractor:
         backbone_model = FeatureExtractionBackbone(model)
         return cls(backbone_model, device, input_size)
 
+    def _download_checkpoint_from_url(self, url: str) -> str:
+        """Downloads a model checkpoint from a URL.
+
+        Args:
+            url (str): The URL to download the model checkpoint from.
+
+        Returns:
+            str: The local path to the downloaded checkpoint file.
+        """
+        from trackers.utils.download_file_utils import AsyncFileDownloader
+
+        downloader = AsyncFileDownloader()
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                future = asyncio.ensure_future(downloader.process_url(url))
+                checkpoint_path = loop.run_until_complete(future)
+            else:
+                checkpoint_path = loop.run_until_complete(downloader.process_url(url))
+        except RuntimeError:
+            checkpoint_path = asyncio.run(downloader.process_url(url))
+        print(
+            f"Model downloaded to {checkpoint_path}. "
+            "Loading the model from the checkpoint."
+        )
+        return checkpoint_path
+
     def _initialize_model(
         self, model_or_checkpoint_path: Union[str, torch.nn.Module, None]
     ):
@@ -112,27 +139,8 @@ class DeepSORTFeatureExtractor:
             import validators
 
             if validators.url(model_or_checkpoint_path):
-                from trackers.utils.download_file_utils import AsyncFileDownloader
-
-                downloader = AsyncFileDownloader()
-                try:
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        future = asyncio.ensure_future(
-                            downloader.process_url(model_or_checkpoint_path)
-                        )
-                        checkpoint_path = loop.run_until_complete(future)
-                    else:
-                        checkpoint_path = loop.run_until_complete(
-                            downloader.process_url(model_or_checkpoint_path)
-                        )
-                except RuntimeError:
-                    checkpoint_path = asyncio.run(
-                        downloader.process_url(model_or_checkpoint_path)
-                    )
-                print(
-                    f"Model downloaded to {checkpoint_path} "
-                    "Loading the model from the checkpoint."
+                checkpoint_path = self._download_checkpoint_from_url(
+                    model_or_checkpoint_path
                 )
                 self._load_model_from_path(checkpoint_path)
             else:
