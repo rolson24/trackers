@@ -159,3 +159,33 @@ class AsyncFileDownloader:
             return final_save_path
         finally:
             tmp_dir.cleanup()
+
+    def download_file(self, url: str) -> str:
+        """Downloads a file from a URL.
+
+        Args:
+            url (str): The URL to download the model file from.
+
+        Returns:
+            str: The local path to the downloaded file.
+        """
+        if not url:
+            raise ValueError("URL cannot be empty.")
+        if not urlparse(url).scheme:
+            raise ValueError("Invalid URL. Please provide a valid URL.")
+        if not urlparse(url).netloc:
+            raise ValueError("Invalid URL. Please provide a valid URL.")
+        if not urlparse(url).path:
+            raise ValueError("Invalid URL. Please provide a valid URL.")
+
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                future = asyncio.ensure_future(self.process_url(url))
+                file_path = loop.run_until_complete(future)
+            else:
+                file_path = loop.run_until_complete(self.process_url(url))
+        except RuntimeError:
+            file_path = asyncio.run(self.process_url(url))
+        print(f"File downloaded to {file_path}.")
+        return file_path
