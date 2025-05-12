@@ -7,6 +7,7 @@ import supervision as sv
 import timm
 import torch
 import torch.nn as nn
+from safetensors import safe_open
 from safetensors.torch import save_file
 from timm.data import resolve_data_config
 from timm.data.transforms_factory import create_transform
@@ -60,6 +61,32 @@ class ReIDModel:
         self.model_metadata = model_metadata
 
     @classmethod
+    def load_from_checkpoint(
+        cls,
+        checkpoint_path_or_url: str,
+        device: Optional[str] = "auto",
+    ) -> "ReIDModel":
+        """Load a ReIDModel from a checkpoint file.
+
+        Args:
+            checkpoint_path (str): The path to the checkpoint file.
+            device (Optional[str]): The device to run the model on.
+            transforms (Optional[Union[Callable, list[Callable]]]): The transforms to
+                apply to the input images.
+
+        Returns:
+            ReIDModel: A new instance of ReIDModel.
+        """
+        state_dict = {}
+        with safe_open(checkpoint_path_or_url, framework="pt", device="cpu") as f:
+            for key in f.keys():
+                state_dict[key] = f.get_tensor(key)
+            metadata = f.metadata()
+            model_metadata = json.loads(metadata["config"])
+        kwargs = model_metadata.pop("kwargs")
+        return cls.from_timm(device=device, **model_metadata, **kwargs)
+
+    @classmethod
     def from_timm(
         cls,
         model_name: str,
@@ -67,7 +94,7 @@ class ReIDModel:
         pretrained: bool = True,
         get_pooled_features: bool = True,
         **kwargs,
-    ):
+    ) -> "ReIDModel":
         """
         Create a `ReIDModel` with a [timm](https://huggingface.co/docs/timm)
         model as the backbone.
