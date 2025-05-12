@@ -1,6 +1,7 @@
 import os
 from typing import Any, Callable, Optional, Union
 
+import json
 import numpy as np
 import supervision as sv
 import timm
@@ -31,6 +32,7 @@ class ReIDModel:
         device (Optional[str]): The device to run the model on.
         transforms (Optional[Union[Callable, list[Callable]]]): The transforms to
             apply to the input images.
+        model_metadata (Optional[dict[str, Any]]): Metadata about the model architecture.
     """
 
     def __init__(
@@ -38,6 +40,7 @@ class ReIDModel:
         backbone_model: nn.Module,
         device: Optional[str] = "auto",
         transforms: Optional[Union[Callable, list[Callable]]] = None,
+        model_metadata: Optional[dict[str, Any]] = None,
     ):
         self.backbone_model = backbone_model
         self.device = parse_device_spec(device or "auto")
@@ -53,6 +56,7 @@ class ReIDModel:
             if isinstance(transforms, list)
             else [ToPILImage(), transforms]
         )
+        self.model_metadata = model_metadata
 
     @classmethod
     def from_timm(
@@ -91,7 +95,13 @@ class ReIDModel:
         )
         config = resolve_data_config(model.pretrained_cfg)
         transforms = create_transform(**config)
-        return cls(model, device, transforms)
+        model_metadata = {
+            "model_name": model_name,
+            "pretrained": pretrained,
+            "get_pooled_features": get_pooled_features,
+            "kwargs": kwargs,
+        }
+        return cls(model, device, transforms, model_metadata)
 
     def extract_features(
         self, frame: np.ndarray, detections: sv.Detections
@@ -263,6 +273,7 @@ class ReIDModel:
                         "optimizer_kwargs": optimizer_kwargs,
                         "projection_dimension": projection_dimension,
                         "freeze_backbone": freeze_backbone,
+                        "model_metadata": self.model_metadata,
                     }
                 )
             )
@@ -336,7 +347,14 @@ class ReIDModel:
                 checkpoint_path = os.path.join(
                     checkpoint_dir, f"reid_model_{epoch + 1}.safetensors"
                 )
-                save_file(state_dict, checkpoint_path)
+                save_file(
+                    state_dict,
+                    checkpoint_path,
+                    metadata={
+                        "config": json.dumps(self.model_metadata),
+                        "format": "pt",
+                    },
+                )
                 if callbacks:
                     for callback in callbacks:
                         callback.on_checkpoint_save(checkpoint_path, epoch + 1)
