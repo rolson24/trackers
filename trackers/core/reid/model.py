@@ -110,7 +110,23 @@ class ReIDModel:
 
         return np.array(features)
 
-    def train_step(
+    def _perform_model_surgery(
+        self, projection_dimension: Optional[int] = None, freeze_backbone: bool = False
+    ):
+        if projection_dimension is not None:
+            # Freeze backbone only if specified and projection_dimension is mentioned
+            if freeze_backbone:
+                for param in self.backbone_model.parameters():
+                    param.requires_grad = False
+
+            # Add projection layer if projection_dimension is specified
+            self.backbone_model = nn.Sequential(
+                self.backbone_model,
+                nn.Linear(self.backbone_model.num_features, projection_dimension),
+            )
+            self.backbone_model.to(self.device)
+
+    def _train_step(
         self,
         anchor_image: torch.Tensor,
         positive_image: torch.Tensor,
@@ -132,7 +148,7 @@ class ReIDModel:
 
         return {"train/loss": loss.item()}
 
-    def validation_step(
+    def _validation_step(
         self,
         anchor_image: torch.Tensor,
         positive_image: torch.Tensor,
@@ -156,6 +172,8 @@ class ReIDModel:
         train_loader: DataLoader,
         epochs: int,
         validation_loader: Optional[DataLoader] = None,
+        projection_dimension: Optional[int] = None,
+        freeze_backbone: bool = False,
         optimizer_class: str = "torch.optim.Adam",
         learning_rate: float = 5e-5,
         optimizer_kwargs: dict[str, Any] = {},
@@ -165,6 +183,8 @@ class ReIDModel:
         log_to_wandb: bool = False,
     ) -> None:
         os.makedirs(checkpoint_dir, exist_ok=True)
+
+        self._perform_model_surgery(projection_dimension, freeze_backbone)
 
         # Initialize optimizer and criterion
         self.optimizer = eval(optimizer_class)(
@@ -184,6 +204,8 @@ class ReIDModel:
                         "learning_rate": learning_rate,
                         "optimizer_class": optimizer_class,
                         "optimizer_kwargs": optimizer_kwargs,
+                        "projection_dimension": projection_dimension,
+                        "freeze_backbone": freeze_backbone,
                     }
                 )
             )
@@ -213,7 +235,7 @@ class ReIDModel:
                             {}, epoch * len(train_loader) + idx
                         )
 
-                train_logs = self.train_step(
+                train_logs = self._train_step(
                     anchor_image, positive_image, negative_image
                 )
 
@@ -238,7 +260,7 @@ class ReIDModel:
                             )
 
                     anchor_image, positive_image, negative_image = data
-                    validation_logs = self.validation_step(
+                    validation_logs = self._validation_step(
                         anchor_image, positive_image, negative_image
                     )
 
