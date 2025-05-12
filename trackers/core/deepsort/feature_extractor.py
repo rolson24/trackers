@@ -111,12 +111,10 @@ class DeepSORTFeatureExtractor:
             import validators
 
             if validators.url(model_or_checkpoint_path):
-                from trackers.utils.downloader import AsyncFileDownloader
+                from trackers.utils.downloader import download_file
 
-                async_file_downloader = AsyncFileDownloader()
-                checkpoint_path = async_file_downloader.download_file(
-                    model_or_checkpoint_path
-                )
+                checkpoint_path = download_file(model_or_checkpoint_path)
+
                 self._load_model_from_path(checkpoint_path)
             else:
                 self._load_model_from_path(model_or_checkpoint_path)

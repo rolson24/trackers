@@ -10,7 +10,7 @@ import aiohttp
 from tqdm.asyncio import tqdm as async_tqdm
 
 
-class AsyncFileDownloader:
+class _AsyncFileDownloader:
     """Asynchronously downloads files with
         support for multipart downloading and progress bars.
 
@@ -160,32 +160,45 @@ class AsyncFileDownloader:
         finally:
             tmp_dir.cleanup()
 
-    def download_file(self, url: str) -> str:
-        """Downloads a file from a URL.
 
-        Args:
-            url (str): The URL to download the model file from.
+def download_file(
+    url: str, part_size_mb: int = 10, default_chunk_size: int = 8192
+) -> str:
+    """Asynchronously downloads files with support for multipart downloading and progress bars.
 
-        Returns:
-            str: The local path to the downloaded file.
-        """
-        if not url:
-            raise ValueError("URL cannot be empty.")
-        if not urlparse(url).scheme:
-            raise ValueError("Invalid URL. Please provide a valid URL.")
-        if not urlparse(url).netloc:
-            raise ValueError("Invalid URL. Please provide a valid URL.")
-        if not urlparse(url).path:
-            raise ValueError("Invalid URL. Please provide a valid URL.")
+    This class handles downloading files from URLs, automatically determining whether
+    to use multipart downloading based on server support for content length.
+    It displays progress using tqdm.
 
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                future = asyncio.ensure_future(self.process_url(url))
-                file_path = loop.run_until_complete(future)
-            else:
-                file_path = loop.run_until_complete(self.process_url(url))
-        except RuntimeError:
-            file_path = asyncio.run(self.process_url(url))
-        print(f"File downloaded to {file_path}.")
-        return file_path
+    Args:
+        url (str): The URL to download the model file from.
+        part_size_mb (int): The size of each part in megabytes for multipart downloads.
+        default_chunk_size (int): The default chunk size in bytes for reading content.
+
+    Returns:
+        str: The local path to the downloaded file.
+    """  # noqa: E501
+
+    downloader = _AsyncFileDownloader(
+        part_size_mb=part_size_mb, default_chunk_size=default_chunk_size
+    )
+    if not url:
+        raise ValueError("URL cannot be empty.")
+    if not urlparse(url).scheme:
+        raise ValueError("Invalid URL. Please provide a valid URL.")
+    if not urlparse(url).netloc:
+        raise ValueError("Invalid URL. Please provide a valid URL.")
+    if not urlparse(url).path:
+        raise ValueError("Invalid URL. Please provide a valid URL.")
+
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            future = asyncio.ensure_future(downloader.process_url(url))
+            file_path = loop.run_until_complete(future)
+        else:
+            file_path = loop.run_until_complete(downloader.process_url(url))
+    except RuntimeError:
+        file_path = asyncio.run(downloader.process_url(url))
+    print(f"File downloaded to {file_path}.")
+    return file_path
