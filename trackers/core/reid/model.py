@@ -1,7 +1,7 @@
+import json
 import os
 from typing import Any, Callable, Optional, Union
 
-import json
 import numpy as np
 import supervision as sv
 import timm
