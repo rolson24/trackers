@@ -1,7 +1,8 @@
 from typing import Any, Optional
 
-import wandb
 from torch.utils.tensorboard import SummaryWriter
+
+import wandb
 
 
 class BaseCallback:

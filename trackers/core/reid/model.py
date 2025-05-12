@@ -235,6 +235,9 @@ class ReIDModel:
             log_to_tensorboard (bool): Whether to log to tensorboard.
             log_to_wandb (bool): Whether to log to wandb. If `checkpoint_interval` is
                 specified, the model will be logged to wandb as well.
+                Project and entity name should be set using the environment variables
+                `WANDB_PROJECT` and `WANDB_ENTITY`. For more details, refer to
+                [wandb environment variables](https://docs.wandb.ai/guides/track/environment-variables).
         """
         os.makedirs(checkpoint_dir, exist_ok=True)
 

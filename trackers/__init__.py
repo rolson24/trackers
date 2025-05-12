@@ -8,20 +8,9 @@ logger = get_logger(__name__)
 try:
     from trackers.core.deepsort.feature_extractor import DeepSORTFeatureExtractor
     from trackers.core.deepsort.tracker import DeepSORTTracker
-
-    __all__.extend(["DeepSORTFeatureExtractor", "DeepSORTTracker"])
-except ImportError:
-    logger.warning(
-        "DeepSORT dependencies not installed. DeepSORT features will not be available. "
-        "Please run `pip install trackers[deepsort]` and try again."
-    )
-    pass
-
-
-try:
     from trackers.core.reid.model import ReIDModel
 
-    __all__.append("ReIDModel")
+    __all__.extend(["DeepSORTFeatureExtractor", "DeepSORTTracker", "ReIDModel"])
 except ImportError:
     logger.warning(
         "ReIDModel dependencies not installed. ReIDModel will not be available. "
