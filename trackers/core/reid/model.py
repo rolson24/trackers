@@ -7,7 +7,6 @@ import supervision as sv
 import timm
 import torch
 import torch.nn as nn
-import torch.optim as optim
 from safetensors.torch import save_file
 from timm.data import resolve_data_config
 from timm.data.transforms_factory import create_transform
@@ -154,7 +153,7 @@ class ReIDModel:
         train_loader: DataLoader,
         epochs: int,
         validation_loader: Optional[DataLoader] = None,
-        optimizer: ReIDOptimizer = ReIDOptimizer.ADAM,
+        optimizer_class: str = "torch.optim.Adam",
         learning_rate: float = 5e-5,
         optimizer_kwargs: dict[str, Any] = {},
         checkpoint_interval: Optional[int] = None,
@@ -162,15 +161,9 @@ class ReIDModel:
         log_to_tensorboard: bool = False,
     ) -> None:
         os.makedirs(checkpoint_dir, exist_ok=True)
-
-        if optimizer == ReIDOptimizer.ADAM:
-            self.optimizer = optim.Adam(
-                self.backbone_model.parameters(), lr=learning_rate, **optimizer_kwargs
-            )
-        elif optimizer == ReIDOptimizer.SGD:
-            self.optimizer = optim.SGD(
-                self.backbone_model.parameters(), lr=learning_rate, **optimizer_kwargs
-            )
+        self.optimizer = eval(optimizer_class)(
+            self.backbone_model.parameters(), lr=learning_rate, **optimizer_kwargs
+        )
         self.criterion = nn.TripletMarginLoss(margin=1.0)
 
         metric_logger_callback = []
