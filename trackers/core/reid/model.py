@@ -1,5 +1,4 @@
 import os
-from enum import Enum
 from typing import Any, Callable, Optional
 
 import numpy as np
@@ -16,11 +15,6 @@ from tqdm.auto import tqdm
 
 from trackers.core.reid.callbacks import TensorboardCallback
 from trackers.utils.torch_utils import parse_device_spec
-
-
-class ReIDOptimizer(str, Enum):
-    ADAM = "adam"
-    SGD = "sgd"
 
 
 class ReIDModel:

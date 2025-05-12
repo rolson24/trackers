@@ -13,7 +13,14 @@ class TensorboardCallback:
         flush_secs: int = 120,
         filename_suffix: str = "",
     ):
-        self.writer = SummaryWriter(log_dir)
+        self.writer = SummaryWriter(
+            log_dir,
+            comment=comment,
+            filename_suffix=filename_suffix,
+            purge_step=purge_step,
+            max_queue=max_queue,
+            flush_secs=flush_secs,
+        )
 
     def on_train_end(self, logs: dict, idx: int):
         for key, value in logs.items():
