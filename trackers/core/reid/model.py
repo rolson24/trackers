@@ -178,7 +178,7 @@ class ReIDModel:
 
                 if metric_logger_callback:
                     for callback in metric_logger_callback:
-                        callback.on_train_end(
+                        callback.on_train_step_end(
                             train_logs, epoch * len(train_loader) + idx
                         )
 
@@ -196,7 +196,7 @@ class ReIDModel:
 
                     if metric_logger_callback:
                         for callback in metric_logger_callback:
-                            callback.on_validation_end(
+                            callback.on_validation_step_end(
                                 validation_logs, epoch * len(train_loader) + idx
                             )
 
@@ -212,4 +212,4 @@ class ReIDModel:
 
         if metric_logger_callback:
             for callback in metric_logger_callback:
-                callback.on_end()
+                callback.on_train_val_end()

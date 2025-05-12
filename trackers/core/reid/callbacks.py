@@ -3,7 +3,18 @@ from typing import Any, Optional
 from torch.utils.tensorboard import SummaryWriter
 
 
-class TensorboardCallback:
+class BaseCallback:
+    def on_train_step_end(self, logs: dict, idx: int):
+        pass
+
+    def on_validation_step_end(self, logs: dict, idx: int):
+        pass
+
+    def on_train_val_end(self):
+        pass
+
+
+class TensorboardCallback(BaseCallback):
     def __init__(
         self,
         log_dir: Optional[str] = None,
@@ -22,14 +33,14 @@ class TensorboardCallback:
             flush_secs=flush_secs,
         )
 
-    def on_train_end(self, logs: dict, idx: int):
+    def on_train_step_end(self, logs: dict, idx: int):
         for key, value in logs.items():
             self.writer.add_scalar(key, value, idx)
 
-    def on_validation_end(self, logs: dict, idx: int):
+    def on_validation_step_end(self, logs: dict, idx: int):
         for key, value in logs.items():
             self.writer.add_scalar(key, value, idx)
 
-    def on_end(self):
+    def on_train_val_end(self):
         self.writer.flush()
         self.writer.close()
