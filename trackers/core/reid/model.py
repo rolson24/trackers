@@ -32,7 +32,8 @@ class ReIDModel:
         device (Optional[str]): The device to run the model on.
         transforms (Optional[Union[Callable, list[Callable]]]): The transforms to
             apply to the input images.
-        model_metadata (Optional[dict[str, Any]]): Metadata about the model architecture.
+        model_metadata (Optional[dict[str, Any]]): Metadata about the model
+            architecture.
     """
 
     def __init__(
