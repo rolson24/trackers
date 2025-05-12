@@ -1,5 +1,5 @@
 import os
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Union
 
 import numpy as np
 import supervision as sv
@@ -22,13 +22,22 @@ class ReIDModel:
         self,
         backbone_model: nn.Module,
         device: Optional[str] = "auto",
-        transforms: Optional[Callable] = None,
+        transforms: Optional[Union[Callable, list[Callable]]] = None,
     ):
         self.backbone_model = backbone_model
         self.device = parse_device_spec(device or "auto")
         self.backbone_model.to(self.device)
         self.backbone_model.eval()
-        self.inference_transforms = Compose([ToPILImage(), transforms])
+        self.train_transforms = (
+            (Compose(*transforms) if isinstance(transforms, list) else transforms)
+            if transforms is not None
+            else None
+        )
+        self.inference_transforms = Compose(
+            [ToPILImage(), *transforms]
+            if isinstance(transforms, list)
+            else [ToPILImage(), transforms]
+        )
 
     @classmethod
     def from_timm(
@@ -105,9 +114,9 @@ class ReIDModel:
     ) -> torch.Tensor:
         self.optimizer.zero_grad()
 
-        anchor_image_features = self.backbone_model(anchor_image.to(self.device))
-        positive_image_features = self.backbone_model(positive_image.to(self.device))
-        negative_image_features = self.backbone_model(negative_image.to(self.device))
+        anchor_image_features = self.backbone_model(anchor_image)
+        positive_image_features = self.backbone_model(positive_image)
+        negative_image_features = self.backbone_model(negative_image)
 
         loss = self.criterion(
             anchor_image_features,
@@ -126,13 +135,9 @@ class ReIDModel:
         negative_image: torch.Tensor,
     ) -> torch.Tensor:
         with torch.no_grad():
-            anchor_image_features = self.backbone_model(anchor_image.to(self.device))
-            positive_image_features = self.backbone_model(
-                positive_image.to(self.device)
-            )
-            negative_image_features = self.backbone_model(
-                negative_image.to(self.device)
-            )
+            anchor_image_features = self.backbone_model(anchor_image)
+            positive_image_features = self.backbone_model(positive_image)
+            negative_image_features = self.backbone_model(negative_image)
 
         loss = self.criterion(
             anchor_image_features,
@@ -176,13 +181,22 @@ class ReIDModel:
                 desc=f"Training Epoch {epoch + 1}/{epochs}",
                 leave=False,
             ):
+                anchor_image, positive_image, negative_image = data
+                if self.train_transforms is not None:
+                    anchor_image = self.train_transforms(anchor_image)
+                    positive_image = self.train_transforms(positive_image)
+                    negative_image = self.train_transforms(negative_image)
+
+                anchor_image = anchor_image.to(self.device)
+                positive_image = positive_image.to(self.device)
+                negative_image = negative_image.to(self.device)
+
                 if metric_logger_callback:
                     for callback in metric_logger_callback:
                         callback.on_train_batch_start(
                             {}, epoch * len(train_loader) + idx
                         )
 
-                anchor_image, positive_image, negative_image = data
                 train_logs = self.train_step(
                     anchor_image, positive_image, negative_image
                 )
