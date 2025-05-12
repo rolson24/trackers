@@ -40,6 +40,7 @@ dependencies = [
     "supervision>=0.26.0rc7",
     "tensorboard>=2.19.0",
     "validators>=0.34.0",
+    "wandb>=0.19.11",
 ]
 
 [project.optional-dependencies]

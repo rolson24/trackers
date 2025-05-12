@@ -4,10 +4,16 @@ from torch.utils.tensorboard import SummaryWriter
 
 
 class BaseCallback:
-    def on_train_step_end(self, logs: dict, idx: int):
+    def on_train_batch_start(self, logs: dict, idx: int):
         pass
 
-    def on_validation_step_end(self, logs: dict, idx: int):
+    def on_train_batch_end(self, logs: dict, idx: int):
+        pass
+
+    def on_validation_batch_start(self, logs: dict, idx: int):
+        pass
+
+    def on_validation_batch_end(self, logs: dict, idx: int):
         pass
 
     def on_train_val_end(self):
@@ -33,11 +39,11 @@ class TensorboardCallback(BaseCallback):
             flush_secs=flush_secs,
         )
 
-    def on_train_step_end(self, logs: dict, idx: int):
+    def on_train_batch_end(self, logs: dict, idx: int):
         for key, value in logs.items():
             self.writer.add_scalar(key, value, idx)
 
-    def on_validation_step_end(self, logs: dict, idx: int):
+    def on_validation_batch_end(self, logs: dict, idx: int):
         for key, value in logs.items():
             self.writer.add_scalar(key, value, idx)
 

@@ -155,22 +155,33 @@ class ReIDModel:
         log_to_tensorboard: bool = False,
     ) -> None:
         os.makedirs(checkpoint_dir, exist_ok=True)
+
+        # Initialize optimizer and criterion
         self.optimizer = eval(optimizer_class)(
             self.backbone_model.parameters(), lr=learning_rate, **optimizer_kwargs
         )
         self.criterion = nn.TripletMarginLoss(margin=1.0)
 
+        # Initialize callbacks
         metric_logger_callback = []
         if log_to_tensorboard:
             metric_logger_callback.append(TensorboardCallback())
 
+        # Training loop over epochs
         for epoch in tqdm(range(epochs), desc="Training"):
+            # Training loop over batches
             for idx, data in tqdm(
                 enumerate(train_loader),
                 total=len(train_loader),
                 desc=f"Training Epoch {epoch + 1}/{epochs}",
                 leave=False,
             ):
+                if metric_logger_callback:
+                    for callback in metric_logger_callback:
+                        callback.on_train_batch_start(
+                            {}, epoch * len(train_loader) + idx
+                        )
+
                 anchor_image, positive_image, negative_image = data
                 train_logs = self.train_step(
                     anchor_image, positive_image, negative_image
@@ -178,10 +189,11 @@ class ReIDModel:
 
                 if metric_logger_callback:
                     for callback in metric_logger_callback:
-                        callback.on_train_step_end(
+                        callback.on_train_batch_end(
                             train_logs, epoch * len(train_loader) + idx
                         )
 
+            # Validation loop over batches
             if validation_loader is not None:
                 for idx, data in tqdm(
                     enumerate(validation_loader),
@@ -189,6 +201,12 @@ class ReIDModel:
                     desc=f"Validation Epoch {epoch + 1}/{epochs}",
                     leave=False,
                 ):
+                    if metric_logger_callback:
+                        for callback in metric_logger_callback:
+                            callback.on_validation_batch_start(
+                                {}, epoch * len(train_loader) + idx
+                            )
+
                     anchor_image, positive_image, negative_image = data
                     validation_logs = self.validation_step(
                         anchor_image, positive_image, negative_image
@@ -196,10 +214,11 @@ class ReIDModel:
 
                     if metric_logger_callback:
                         for callback in metric_logger_callback:
-                            callback.on_validation_step_end(
+                            callback.on_validation_batch_end(
                                 validation_logs, epoch * len(train_loader) + idx
                             )
 
+            # Save checkpoint
             if (
                 checkpoint_interval is not None
                 and (epoch + 1) % checkpoint_interval == 0
