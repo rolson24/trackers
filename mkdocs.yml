@@ -112,3 +112,4 @@ nav:
     - DeepSORT: trackers/core/deepsort/tracker.md
   - ReID:
     - Datasets: trackers/core/reid/dataset.md
+    - Model: trackers/core/reid/model.md

@@ -22,6 +22,17 @@ from trackers.utils.torch_utils import parse_device_spec
 
 
 class ReIDModel:
+    """
+    A ReID model that is used to extract features from detection crops for trackers
+    that utilize appearance features.
+
+    Args:
+        backbone_model (nn.Module): The torch model to use as the backbone.
+        device (Optional[str]): The device to run the model on.
+        transforms (Optional[Union[Callable, list[Callable]]]): The transforms to
+            apply to the input images.
+    """
+
     def __init__(
         self,
         backbone_model: nn.Module,
@@ -53,8 +64,8 @@ class ReIDModel:
         **kwargs,
     ):
         """
-        Create a feature extractor from a
-        [timm](https://huggingface.co/docs/timm) model.
+        Create a `ReIDModel` with a [timm](https://huggingface.co/docs/timm)
+        model as the backbone.
 
         Args:
             model_name (str): Name of the timm model to use.
@@ -113,6 +124,15 @@ class ReIDModel:
     def _perform_model_surgery(
         self, projection_dimension: Optional[int] = None, freeze_backbone: bool = False
     ):
+        """
+        Perform model surgery to add a projection layer to the model and freeze the
+        backbone if specified. The backbone is only frozen if `projection_dimension`
+        is specified.
+
+        Args:
+            projection_dimension (Optional[int]): The dimension of the projection layer.
+            freeze_backbone (bool): Whether to freeze the backbone of the model.
+        """
         if projection_dimension is not None:
             # Freeze backbone only if specified and projection_dimension is mentioned
             if freeze_backbone:
@@ -131,9 +151,16 @@ class ReIDModel:
         anchor_image: torch.Tensor,
         positive_image: torch.Tensor,
         negative_image: torch.Tensor,
-    ) -> torch.Tensor:
-        self.optimizer.zero_grad()
+    ) -> dict[str, float]:
+        """
+        Perform a single training step.
 
+        Args:
+            anchor_image (torch.Tensor): The anchor image.
+            positive_image (torch.Tensor): The positive image.
+            negative_image (torch.Tensor): The negative image.
+        """
+        self.optimizer.zero_grad()
         anchor_image_features = self.backbone_model(anchor_image)
         positive_image_features = self.backbone_model(positive_image)
         negative_image_features = self.backbone_model(negative_image)
@@ -153,7 +180,15 @@ class ReIDModel:
         anchor_image: torch.Tensor,
         positive_image: torch.Tensor,
         negative_image: torch.Tensor,
-    ) -> torch.Tensor:
+    ) -> dict[str, float]:
+        """
+        Perform a single validation step.
+
+        Args:
+            anchor_image (torch.Tensor): The anchor image.
+            positive_image (torch.Tensor): The positive image.
+            negative_image (torch.Tensor): The negative image.
+        """
         with torch.no_grad():
             anchor_image_features = self.backbone_model(anchor_image)
             positive_image_features = self.backbone_model(positive_image)
@@ -182,6 +217,25 @@ class ReIDModel:
         log_to_tensorboard: bool = False,
         log_to_wandb: bool = False,
     ) -> None:
+        """
+        Train/fine-tune the ReID model.
+
+        Args:
+            train_loader (DataLoader): The training data loader.
+            epochs (int): The number of epochs to train the model.
+            validation_loader (Optional[DataLoader]): The validation data loader.
+            projection_dimension (Optional[int]): The dimension of the projection layer.
+            freeze_backbone (bool): Whether to freeze the backbone of the model. The
+                backbone is only frozen if `projection_dimension` is specified.
+            optimizer_class (str): The optimizer class to use.
+            learning_rate (float): The learning rate to use for the optimizer.
+            optimizer_kwargs (dict[str, Any]): The optimizer kwargs to use.
+            checkpoint_interval (Optional[int]): The interval to save checkpoints.
+            checkpoint_dir (str): The directory to save checkpoints.
+            log_to_tensorboard (bool): Whether to log to tensorboard.
+            log_to_wandb (bool): Whether to log to wandb. If `checkpoint_interval` is
+                specified, the model will be logged to wandb as well.
+        """
         os.makedirs(checkpoint_dir, exist_ok=True)
 
         self._perform_model_surgery(projection_dimension, freeze_backbone)
