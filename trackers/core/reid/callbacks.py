@@ -2,6 +2,8 @@ from typing import Any, Optional
 
 from torch.utils.tensorboard import SummaryWriter
 
+import wandb
+
 
 class BaseCallback:
     def on_train_batch_start(self, logs: dict, idx: int):
@@ -16,7 +18,10 @@ class BaseCallback:
     def on_validation_batch_end(self, logs: dict, idx: int):
         pass
 
-    def on_train_val_end(self):
+    def on_checkpoint_save(self, checkpoint_path: str, epoch: int):
+        pass
+
+    def on_end(self):
         pass
 
 
@@ -47,6 +52,27 @@ class TensorboardCallback(BaseCallback):
         for key, value in logs.items():
             self.writer.add_scalar(key, value, idx)
 
-    def on_train_val_end(self):
+    def on_end(self):
         self.writer.flush()
         self.writer.close()
+
+
+class WandbCallback(BaseCallback):
+    def __init__(self, config: dict[str, Any]) -> None:
+        self.run = wandb.init(config=config) if not wandb.run else wandb.run  # type: ignore
+
+    def on_train_batch_end(self, logs: dict, idx: int):
+        self.run.log(logs, step=idx)
+
+    def on_validation_batch_end(self, logs: dict, idx: int):
+        self.run.log(logs, step=idx)
+
+    def on_checkpoint_save(self, checkpoint_path: str, epoch: int):
+        self.run.log_model(
+            path=checkpoint_path,
+            name=f"checkpoint_{self.run.id}",
+            aliases=[f"epoch-{epoch}", "latest"],
+        )
+
+    def on_end(self):
+        self.run.finish()

@@ -13,7 +13,11 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import Compose, ToPILImage
 from tqdm.auto import tqdm
 
-from trackers.core.reid.callbacks import TensorboardCallback
+from trackers.core.reid.callbacks import (
+    BaseCallback,
+    TensorboardCallback,
+    WandbCallback,
+)
 from trackers.utils.torch_utils import parse_device_spec
 
 
@@ -158,6 +162,7 @@ class ReIDModel:
         checkpoint_interval: Optional[int] = None,
         checkpoint_dir: str = "checkpoints",
         log_to_tensorboard: bool = False,
+        log_to_wandb: bool = False,
     ) -> None:
         os.makedirs(checkpoint_dir, exist_ok=True)
 
@@ -168,9 +173,20 @@ class ReIDModel:
         self.criterion = nn.TripletMarginLoss(margin=1.0)
 
         # Initialize callbacks
-        metric_logger_callback = []
+        callbacks: list[BaseCallback] = []
         if log_to_tensorboard:
-            metric_logger_callback.append(TensorboardCallback())
+            callbacks.append(TensorboardCallback())
+        if log_to_wandb:
+            callbacks.append(
+                WandbCallback(
+                    config={
+                        "epochs": epochs,
+                        "learning_rate": learning_rate,
+                        "optimizer_class": optimizer_class,
+                        "optimizer_kwargs": optimizer_kwargs,
+                    }
+                )
+            )
 
         # Training loop over epochs
         for epoch in tqdm(range(epochs), desc="Training"):
@@ -191,8 +207,8 @@ class ReIDModel:
                 positive_image = positive_image.to(self.device)
                 negative_image = negative_image.to(self.device)
 
-                if metric_logger_callback:
-                    for callback in metric_logger_callback:
+                if callbacks:
+                    for callback in callbacks:
                         callback.on_train_batch_start(
                             {}, epoch * len(train_loader) + idx
                         )
@@ -201,8 +217,8 @@ class ReIDModel:
                     anchor_image, positive_image, negative_image
                 )
 
-                if metric_logger_callback:
-                    for callback in metric_logger_callback:
+                if callbacks:
+                    for callback in callbacks:
                         callback.on_train_batch_end(
                             train_logs, epoch * len(train_loader) + idx
                         )
@@ -215,8 +231,8 @@ class ReIDModel:
                     desc=f"Validation Epoch {epoch + 1}/{epochs}",
                     leave=False,
                 ):
-                    if metric_logger_callback:
-                        for callback in metric_logger_callback:
+                    if callbacks:
+                        for callback in callbacks:
                             callback.on_validation_batch_start(
                                 {}, epoch * len(train_loader) + idx
                             )
@@ -226,8 +242,8 @@ class ReIDModel:
                         anchor_image, positive_image, negative_image
                     )
 
-                    if metric_logger_callback:
-                        for callback in metric_logger_callback:
+                    if callbacks:
+                        for callback in callbacks:
                             callback.on_validation_batch_end(
                                 validation_logs, epoch * len(train_loader) + idx
                             )
@@ -238,11 +254,14 @@ class ReIDModel:
                 and (epoch + 1) % checkpoint_interval == 0
             ):
                 state_dict = self.backbone_model.state_dict()
-                save_file(
-                    state_dict,
-                    os.path.join(checkpoint_dir, f"reid_model_{epoch + 1}.safetensors"),
+                checkpoint_path = os.path.join(
+                    checkpoint_dir, f"reid_model_{epoch + 1}.safetensors"
                 )
+                save_file(state_dict, checkpoint_path)
+                if callbacks:
+                    for callback in callbacks:
+                        callback.on_checkpoint_save(checkpoint_path, epoch + 1)
 
-        if metric_logger_callback:
-            for callback in metric_logger_callback:
-                callback.on_train_val_end()
+        if callbacks:
+            for callback in callbacks:
+                callback.on_end()
