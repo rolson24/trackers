@@ -1,8 +1,7 @@
-from trackers.core.reid import ReIDModel
 from trackers.core.sort.tracker import SORTTracker
 from trackers.log import get_logger
 
-__all__ = ["ReIDModel", "SORTTracker"]
+__all__ = ["SORTTracker"]
 
 logger = get_logger(__name__)
 
@@ -15,5 +14,17 @@ except ImportError:
     logger.warning(
         "DeepSORT dependencies not installed. DeepSORT features will not be available. "
         "Please run `pip install trackers[deepsort]` and try again."
+    )
+    pass
+
+
+try:
+    from trackers.core.reid.model import ReIDModel
+
+    __all__.append("ReIDModel")
+except ImportError:
+    logger.warning(
+        "ReIDModel dependencies not installed. ReIDModel will not be available. "
+        "Please run `pip install trackers[reid]` and try again."
     )
     pass
