@@ -7,7 +7,6 @@ import supervision as sv
 import timm
 import torch
 import torch.nn as nn
-from safetensors import safe_open
 from safetensors.torch import save_file
 from timm.data import resolve_data_config
 from timm.data.transforms_factory import create_transform
@@ -33,8 +32,7 @@ class ReIDModel:
         device (Optional[str]): The device to run the model on.
         transforms (Optional[Union[Callable, list[Callable]]]): The transforms to
             apply to the input images.
-        model_metadata (Optional[dict[str, Any]]): Metadata about the model
-            architecture.
+        model_metadata (dict[str, Any]): Metadata about the model architecture.
     """
 
     def __init__(
@@ -42,7 +40,7 @@ class ReIDModel:
         backbone_model: nn.Module,
         device: Optional[str] = "auto",
         transforms: Optional[Union[Callable, list[Callable]]] = None,
-        model_metadata: Optional[dict[str, Any]] = None,
+        model_metadata: dict[str, Any] = {},
     ):
         self.backbone_model = backbone_model
         self.device = parse_device_spec(device or "auto")
@@ -59,32 +57,6 @@ class ReIDModel:
             else [ToPILImage(), transforms]
         )
         self.model_metadata = model_metadata
-
-    @classmethod
-    def load_from_checkpoint(
-        cls,
-        checkpoint_path_or_url: str,
-        device: Optional[str] = "auto",
-    ) -> "ReIDModel":
-        """Load a ReIDModel from a checkpoint file.
-
-        Args:
-            checkpoint_path (str): The path to the checkpoint file.
-            device (Optional[str]): The device to run the model on.
-            transforms (Optional[Union[Callable, list[Callable]]]): The transforms to
-                apply to the input images.
-
-        Returns:
-            ReIDModel: A new instance of ReIDModel.
-        """
-        state_dict = {}
-        with safe_open(checkpoint_path_or_url, framework="pt", device="cpu") as f:
-            for key in f.keys():
-                state_dict[key] = f.get_tensor(key)
-            metadata = f.metadata()
-            model_metadata = json.loads(metadata["config"])
-        kwargs = model_metadata.pop("kwargs")
-        return cls.from_timm(device=device, **model_metadata, **kwargs)
 
     @classmethod
     def from_timm(
@@ -159,7 +131,7 @@ class ReIDModel:
 
         return np.array(features)
 
-    def _perform_model_surgery(
+    def add_projection_layer(
         self, projection_dimension: Optional[int] = None, freeze_backbone: bool = False
     ):
         """
@@ -169,7 +141,8 @@ class ReIDModel:
 
         Args:
             projection_dimension (Optional[int]): The dimension of the projection layer.
-            freeze_backbone (bool): Whether to freeze the backbone of the model.
+            freeze_backbone (bool): Whether to freeze the backbone of the model during
+                training.
         """
         if projection_dimension is not None:
             # Freeze backbone only if specified and projection_dimension is mentioned
@@ -279,7 +252,7 @@ class ReIDModel:
         """
         os.makedirs(checkpoint_dir, exist_ok=True)
 
-        self._perform_model_surgery(projection_dimension, freeze_backbone)
+        self.add_projection_layer(projection_dimension, freeze_backbone)
 
         # Initialize optimizer and criterion
         self.optimizer = eval(optimizer_class)(
