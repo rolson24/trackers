@@ -16,7 +16,7 @@
     )
     dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
-    model = ReIDModel.from_timm(model_name="resnetv2_50.a1h_in1k")
+    model = ReIDModel.from_timm("resnetv2_50.a1h_in1k")
     model.train(
         dataloader,
         epochs=10,
@@ -29,24 +29,8 @@
 
     ```python
     from trackers import ReIDModel
-    from trackers.utils.torch_utils import load_safetensors_checkpoint
-
-    # Load state dict and config from safetensors checkpoint
-    state_dict, config = load_safetensors_checkpoint(
-        "checkpoints/reid_model_10.safetensors"
-    )
-
-    # Create model architecture from config
-    model = ReIDModel.from_timm(**config["model_metadata"])
-    if config["projection_dimension"]:
-        model.add_projection_layer(
-            projection_dimension=config["projection_dimension"]
-        )
-
-    # Load state dict to the backbone model
-    for k, v in state_dict.items():
-        state_dict[k].to(model.device)
-    model.backbone_model.load_state_dict(state_dict)
+    
+    model = ReIDModel.from_timm("checkpoints/reid_model_10.safetensors")
     ```
 
 ::: trackers.core.reid.model.ReIDModel

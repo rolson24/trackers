@@ -16,9 +16,55 @@ from tqdm.auto import tqdm
 
 from trackers.core.reid.callbacks import BaseCallback
 from trackers.log import get_logger
-from trackers.utils.torch_utils import parse_device_spec
+from trackers.utils.torch_utils import load_safetensors_checkpoint, parse_device_spec
 
 logger = get_logger(__name__)
+
+
+def _initialize_reid_model_from_timm(
+    cls,
+    model_name_or_checkpoint_path: str,
+    device: Optional[str] = "auto",
+    pretrained: bool = True,
+    get_pooled_features: bool = True,
+    **kwargs,
+):
+    if model_name_or_checkpoint_path not in timm.list_models(
+        filter=model_name_or_checkpoint_path, pretrained=pretrained
+    ):
+        raise ValueError(
+            f"Model {model_name_or_checkpoint_path} not found in timm. "
+            + "Please check the model name and try again."
+        )
+    if not get_pooled_features:
+        kwargs["global_pool"] = ""
+    model = timm.create_model(
+        model_name_or_checkpoint_path, pretrained=pretrained, num_classes=0, **kwargs
+    )
+    config = resolve_data_config(model.pretrained_cfg)
+    transforms = create_transform(**config)
+    model_metadata = {
+        "model_name_or_checkpoint_path": model_name_or_checkpoint_path,
+        "pretrained": pretrained,
+        "get_pooled_features": get_pooled_features,
+        "kwargs": kwargs,
+    }
+    return cls(model, device, transforms, model_metadata)
+
+
+def _initialize_reid_model_from_checkpoint(cls, checkpoint_path: str):
+    state_dict, config = load_safetensors_checkpoint(checkpoint_path)
+    reid_model_instance = _initialize_reid_model_from_timm(
+        cls, **config["model_metadata"]
+    )
+    if config["projection_dimension"]:
+        reid_model_instance.add_projection_layer(
+            projection_dimension=config["projection_dimension"]
+        )
+    for k, v in state_dict.items():
+        state_dict[k].to(reid_model_instance.device)
+    reid_model_instance.backbone_model.load_state_dict(state_dict)
+    return reid_model_instance
 
 
 class ReIDModel:
@@ -60,7 +106,7 @@ class ReIDModel:
     @classmethod
     def from_timm(
         cls,
-        model_name: str,
+        model_name_or_checkpoint_path: str,
         device: Optional[str] = "auto",
         pretrained: bool = True,
         get_pooled_features: bool = True,
@@ -71,7 +117,8 @@ class ReIDModel:
         model as the backbone.
 
         Args:
-            model_name (str): Name of the timm model to use.
+            model_name_or_checkpoint_path (str): Name of the timm model to use or
+                path to a safetensors checkpoint.
             device (str): Device to run the model on.
             pretrained (bool): Whether to use pretrained weights from timm or not.
             get_pooled_features (bool): Whether to get the pooled features from the
@@ -82,25 +129,20 @@ class ReIDModel:
         Returns:
             ReIDModel: A new instance of `ReIDModel`.
         """
-        if model_name not in timm.list_models(filter=model_name, pretrained=pretrained):
-            raise ValueError(
-                f"Model {model_name} not found in timm. "
-                + "Please check the model name and try again."
+        if os.path.exists(model_name_or_checkpoint_path):
+            return _initialize_reid_model_from_checkpoint(
+                cls,
+                model_name_or_checkpoint_path,
             )
-        if not get_pooled_features:
-            kwargs["global_pool"] = ""
-        model = timm.create_model(
-            model_name, pretrained=pretrained, num_classes=0, **kwargs
-        )
-        config = resolve_data_config(model.pretrained_cfg)
-        transforms = create_transform(**config)
-        model_metadata = {
-            "model_name": model_name,
-            "pretrained": pretrained,
-            "get_pooled_features": get_pooled_features,
-            "kwargs": kwargs,
-        }
-        return cls(model, device, transforms, model_metadata)
+        else:
+            return _initialize_reid_model_from_timm(
+                cls,
+                model_name_or_checkpoint_path,
+                device,
+                pretrained,
+                get_pooled_features,
+                **kwargs,
+            )
 
     def extract_features(
         self, frame: np.ndarray, detections: sv.Detections

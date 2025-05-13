@@ -21,7 +21,7 @@ DeepSORT extends the original [SORT](../sort/tracker.md) algorithm by integratin
     from trackers import DeepSORTTracker, ReIDModel
     from inference import get_model
 
-    reid_model = ReIDModel.from_timm(model_name="resnetv2_50.a1h_in1k")
+    reid_model = ReIDModel.from_timm("resnetv2_50.a1h_in1k")
     tracker = DeepSORTTracker(reid_model=reid_model)
     model = get_model(model_id="yolov11m-640")
     annotator = sv.LabelAnnotator(text_position=sv.Position.CENTER)
@@ -46,7 +46,7 @@ DeepSORT extends the original [SORT](../sort/tracker.md) algorithm by integratin
     from trackers import DeepSORTTracker, ReIDModel
     from rfdetr import RFDETRBase
 
-    reid_model = ReIDModel.from_timm(model_name="resnetv2_50.a1h_in1k")
+    reid_model = ReIDModel.from_timm("resnetv2_50.a1h_in1k")
     tracker = DeepSORTTracker(reid_model=reid_model)
     model = RFDETRBase()
     annotator = sv.LabelAnnotator(text_position=sv.Position.CENTER)
@@ -70,7 +70,7 @@ DeepSORT extends the original [SORT](../sort/tracker.md) algorithm by integratin
     from trackers import DeepSORTTracker, ReIDModel
     from ultralytics import YOLO
 
-    reid_model = ReIDModel.from_timm(model_name="resnetv2_50.a1h_in1k")
+    reid_model = ReIDModel.from_timm("resnetv2_50.a1h_in1k")
     tracker = DeepSORTTracker(reid_model=reid_model)
     model = YOLO("yolo11m.pt")
     annotator = sv.LabelAnnotator(text_position=sv.Position.CENTER)
@@ -96,7 +96,7 @@ DeepSORT extends the original [SORT](../sort/tracker.md) algorithm by integratin
     from trackers import DeepSORTTracker, ReIDModel
     from transformers import RTDetrV2ForObjectDetection, RTDetrImageProcessor
 
-    reid_model = ReIDModel.from_timm(model_name="resnetv2_50.a1h_in1k")
+    reid_model = ReIDModel.from_timm("resnetv2_50.a1h_in1k")
     tracker = DeepSORTTracker(reid_model=reid_model)
     processor = RTDetrImageProcessor.from_pretrained("PekingU/rtdetr_v2_r18vd")
     model = RTDetrV2ForObjectDetection.from_pretrained("PekingU/rtdetr_v2_r18vd")
