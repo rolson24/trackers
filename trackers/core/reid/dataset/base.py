@@ -9,7 +9,7 @@ from supervision.dataset.utils import train_test_split
 from torch.utils.data import Dataset
 from torchvision.transforms import Compose, ToTensor
 
-from trackers.utils.data_utils import validate_tracker_id_to_images
+from trackers.core.reid.dataset.utils import validate_tracker_id_to_images
 
 
 class TripletsDataset(Dataset):
