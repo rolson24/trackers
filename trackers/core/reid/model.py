@@ -260,24 +260,22 @@ class ReIDModel:
         )
         self.criterion = nn.TripletMarginLoss(margin=1.0)
 
+        config = {
+            "epochs": epochs,
+            "learning_rate": learning_rate,
+            "optimizer_class": optimizer_class,
+            "optimizer_kwargs": optimizer_kwargs,
+            "projection_dimension": projection_dimension,
+            "freeze_backbone": freeze_backbone,
+            "model_metadata": self.model_metadata,
+        }
+
         # Initialize callbacks
         callbacks: list[BaseCallback] = []
         if log_to_tensorboard:
             callbacks.append(TensorboardCallback())
         if log_to_wandb:
-            callbacks.append(
-                WandbCallback(
-                    config={
-                        "epochs": epochs,
-                        "learning_rate": learning_rate,
-                        "optimizer_class": optimizer_class,
-                        "optimizer_kwargs": optimizer_kwargs,
-                        "projection_dimension": projection_dimension,
-                        "freeze_backbone": freeze_backbone,
-                        "model_metadata": self.model_metadata,
-                    }
-                )
-            )
+            callbacks.append(WandbCallback(config=config))
 
         # Training loop over epochs
         for epoch in tqdm(range(epochs), desc="Training"):
@@ -351,10 +349,7 @@ class ReIDModel:
                 save_file(
                     state_dict,
                     checkpoint_path,
-                    metadata={
-                        "config": json.dumps(self.model_metadata),
-                        "format": "pt",
-                    },
+                    metadata={"config": json.dumps(config), "format": "pt"},
                 )
                 if callbacks:
                     for callback in callbacks:
