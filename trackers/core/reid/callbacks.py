@@ -1,8 +1,5 @@
 from typing import Any, Optional
 
-import wandb
-from torch.utils.tensorboard import SummaryWriter
-
 
 class BaseCallback:
     def on_train_batch_start(self, logs: dict, idx: int):
@@ -34,6 +31,8 @@ class TensorboardCallback(BaseCallback):
         flush_secs: int = 120,
         filename_suffix: str = "",
     ):
+        from torch.utils.tensorboard import SummaryWriter
+
         self.writer = SummaryWriter(
             log_dir,
             comment=comment,
@@ -58,6 +57,8 @@ class TensorboardCallback(BaseCallback):
 
 class WandbCallback(BaseCallback):
     def __init__(self, config: dict[str, Any]) -> None:
+        import wandb
+
         self.run = wandb.init(config=config) if not wandb.run else wandb.run  # type: ignore
 
     def on_train_batch_end(self, logs: dict, idx: int):
