@@ -1,5 +1,7 @@
 from typing import Any, Optional
 
+import matplotlib.pyplot as plt
+
 
 class BaseCallback:
     def on_train_batch_start(self, logs: dict, idx: int):
@@ -53,6 +55,37 @@ class TensorboardCallback(BaseCallback):
     def on_end(self):
         self.writer.flush()
         self.writer.close()
+
+
+class MatplotlibCallback(BaseCallback):
+    def __init__(self):
+        self.metrics = {"train": {}, "val": {}}
+
+    def on_train_batch_end(self, logs: dict, idx: int):
+        for key, value in logs.items():
+            if key not in self.metrics["train"]:
+                self.metrics["train"][key] = []
+            self.metrics["train"][key].append((idx, value))
+
+    def on_validation_batch_end(self, logs: dict, idx: int):
+        for key, value in logs.items():
+            if key not in self.metrics["val"]:
+                self.metrics["val"][key] = []
+            self.metrics["val"][key].append((idx, value))
+
+    def on_end(self):
+        for phase in ["train", "val"]:
+            for key, values in self.metrics[phase].items():
+                if not values:
+                    continue
+                x, y = zip(*values)
+                plt.figure()
+                plt.plot(x, y, label=f"{phase}")
+                plt.xlabel("Step")
+                plt.ylabel(key)
+                plt.title(f"{key} ({phase})")
+                plt.legend()
+                plt.close()
 
 
 class WandbCallback(BaseCallback):

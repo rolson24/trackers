@@ -265,6 +265,7 @@ class ReIDModel:
         optimizer_kwargs: dict[str, Any] = {},
         checkpoint_interval: Optional[int] = None,
         checkpoint_dir: str = "checkpoints",
+        log_to_matplotlib: bool = False,
         log_to_tensorboard: bool = False,
         log_to_wandb: bool = False,
     ) -> None:
@@ -283,6 +284,7 @@ class ReIDModel:
             optimizer_kwargs (dict[str, Any]): The optimizer kwargs to use.
             checkpoint_interval (Optional[int]): The interval to save checkpoints.
             checkpoint_dir (str): The directory to save checkpoints.
+            log_to_matplotlib (bool): Whether to log to matplotlib.
             log_to_tensorboard (bool): Whether to log to tensorboard.
             log_to_wandb (bool): Whether to log to wandb. If `checkpoint_interval` is
                 specified, the model will be logged to wandb as well.
@@ -312,6 +314,17 @@ class ReIDModel:
 
         # Initialize callbacks
         callbacks: list[BaseCallback] = []
+        if log_to_matplotlib:
+            try:
+                from trackers.core.reid.callbacks import MatplotlibCallback
+
+                callbacks.append(MatplotlibCallback())
+            except (ImportError, AttributeError) as e:
+                logger.error(
+                    "Metric logging dependencies are not installed. "
+                    "Please install it using `pip install trackers[metrics]`.",
+                )
+                raise e
         if log_to_tensorboard:
             try:
                 from trackers.core.reid.callbacks import TensorboardCallback
@@ -386,6 +399,15 @@ class ReIDModel:
                             )
 
                     anchor_image, positive_image, negative_image = data
+                    if self.train_transforms is not None:
+                        anchor_image = self.train_transforms(anchor_image)
+                        positive_image = self.train_transforms(positive_image)
+                        negative_image = self.train_transforms(negative_image)
+
+                    anchor_image = anchor_image.to(self.device)
+                    positive_image = positive_image.to(self.device)
+                    negative_image = negative_image.to(self.device)
+
                     validation_logs = self._validation_step(
                         anchor_image, positive_image, negative_image
                     )
