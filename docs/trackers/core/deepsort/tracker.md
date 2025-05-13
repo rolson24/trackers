@@ -16,15 +16,13 @@ DeepSORT extends the original [SORT](../sort/tracker.md) algorithm by integratin
 
 === "inference"
 
-    ```python hl_lines="2 5-8 15"
+    ```python hl_lines="2 5-6 13"
     import supervision as sv
-    from trackers import DeepSORTFeatureExtractor, DeepSORTTracker
+    from trackers import DeepSORTTracker, ReIDModel
     from inference import get_model
 
-    feature_extractor = DeepSORTFeatureExtractor.from_timm(
-        model_name="mobilenetv4_conv_small.e1200_r224_in1k"
-    )
-    tracker = DeepSORTTracker(feature_extractor=feature_extractor)
+    reid_model = ReIDModel.from_timm(model_name="resnetv2_50.a1h_in1k")
+    tracker = DeepSORTTracker(reid_model=reid_model)
     model = get_model(model_id="yolov11m-640")
     annotator = sv.LabelAnnotator(text_position=sv.Position.CENTER)
 
@@ -43,15 +41,13 @@ DeepSORT extends the original [SORT](../sort/tracker.md) algorithm by integratin
 
 === "rf-detr"
 
-    ```python hl_lines="2 5-8 14"
+    ```python hl_lines="2 5-6 12"
     import supervision as sv
-    from trackers import DeepSORTFeatureExtractor, DeepSORTTracker
+    from trackers import DeepSORTTracker, ReIDModel
     from rfdetr import RFDETRBase
 
-    feature_extractor = DeepSORTFeatureExtractor.from_timm(
-        model_name="mobilenetv4_conv_small.e1200_r224_in1k"
-    )
-    tracker = DeepSORTTracker(feature_extractor=feature_extractor)
+    reid_model = ReIDModel.from_timm(model_name="resnetv2_50.a1h_in1k")
+    tracker = DeepSORTTracker(reid_model=reid_model)
     model = RFDETRBase()
     annotator = sv.LabelAnnotator(text_position=sv.Position.CENTER)
 
@@ -69,15 +65,13 @@ DeepSORT extends the original [SORT](../sort/tracker.md) algorithm by integratin
 
 === "ultralytics"
 
-    ```python hl_lines="2 5-8 15"
+    ```python hl_lines="2 5-6 13"
     import supervision as sv
-    from trackers import DeepSORTFeatureExtractor, DeepSORTTracker
+    from trackers import DeepSORTTracker, ReIDModel
     from ultralytics import YOLO
 
-    feature_extractor = DeepSORTFeatureExtractor.from_timm(
-        model_name="mobilenetv4_conv_small.e1200_r224_in1k"
-    )
-    tracker = DeepSORTTracker(feature_extractor=feature_extractor)
+    reid_model = ReIDModel.from_timm(model_name="resnetv2_50.a1h_in1k")
+    tracker = DeepSORTTracker(reid_model=reid_model)
     model = YOLO("yolo11m.pt")
     annotator = sv.LabelAnnotator(text_position=sv.Position.CENTER)
 
@@ -96,16 +90,14 @@ DeepSORT extends the original [SORT](../sort/tracker.md) algorithm by integratin
 
 === "transformers"
 
-    ```python hl_lines="3 6-9 31"
+    ```python hl_lines="3 6-7 29"
     import torch
     import supervision as sv
-    from trackers import DeepSORTFeatureExtractor, DeepSORTTracker
+    from trackers import DeepSORTTracker, ReIDModel
     from transformers import RTDetrV2ForObjectDetection, RTDetrImageProcessor
 
-    feature_extractor = DeepSORTFeatureExtractor.from_timm(
-        model_name="mobilenetv4_conv_small.e1200_r224_in1k"
-    )
-    tracker = DeepSORTTracker(feature_extractor=feature_extractor)
+    reid_model = ReIDModel.from_timm(model_name="resnetv2_50.a1h_in1k")
+    tracker = DeepSORTTracker(reid_model=reid_model)
     processor = RTDetrImageProcessor.from_pretrained("PekingU/rtdetr_v2_r18vd")
     model = RTDetrV2ForObjectDetection.from_pretrained("PekingU/rtdetr_v2_r18vd")
     annotator = sv.LabelAnnotator(text_position=sv.Position.CENTER)

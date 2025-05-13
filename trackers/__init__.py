@@ -6,11 +6,10 @@ __all__ = ["SORTTracker"]
 logger = get_logger(__name__)
 
 try:
-    from trackers.core.deepsort.feature_extractor import DeepSORTFeatureExtractor
     from trackers.core.deepsort.tracker import DeepSORTTracker
     from trackers.core.reid.model import ReIDModel
 
-    __all__.extend(["DeepSORTFeatureExtractor", "DeepSORTTracker", "ReIDModel"])
+    __all__.extend(["DeepSORTTracker", "ReIDModel"])
 except ImportError:
     logger.warning(
         "ReIDModel dependencies not installed. ReIDModel will not be available. "
