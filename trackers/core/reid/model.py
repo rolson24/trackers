@@ -14,12 +14,11 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import Compose, ToPILImage
 from tqdm.auto import tqdm
 
-from trackers.core.reid.callbacks import (
-    BaseCallback,
-    TensorboardCallback,
-    WandbCallback,
-)
+from trackers.core.reid.callbacks import BaseCallback
+from trackers.log import get_logger
 from trackers.utils.torch_utils import parse_device_spec
+
+logger = get_logger(__name__)
 
 
 class ReIDModel:
@@ -273,9 +272,28 @@ class ReIDModel:
         # Initialize callbacks
         callbacks: list[BaseCallback] = []
         if log_to_tensorboard:
-            callbacks.append(TensorboardCallback())
+            try:
+                from trackers.core.reid.callbacks import TensorboardCallback
+
+                callbacks.append(TensorboardCallback())
+            except (ImportError, AttributeError) as e:
+                logger.error(
+                    "Metric logging dependencies are not installed. "
+                    "Please install it using `pip install trackers[metrics]`."
+                )
+                raise e
+
         if log_to_wandb:
-            callbacks.append(WandbCallback(config=config))
+            try:
+                from trackers.core.reid.callbacks import WandbCallback
+
+                callbacks.append(WandbCallback(config=config))
+            except (ImportError, AttributeError) as e:
+                logger.error(
+                    "Metric logging dependencies are not installed. "
+                    "Please install it using `pip install trackers[metrics]`."
+                )
+                raise e
 
         # Training loop over epochs
         for epoch in tqdm(range(epochs), desc="Training"):
