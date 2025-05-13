@@ -83,6 +83,7 @@ reid = [
 ]
 
 metrics = [
+    "matplotlib>=3.9.4",
     "tensorboard>=2.19.0",
     "wandb>=0.19.11",
 ]
