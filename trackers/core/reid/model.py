@@ -81,7 +81,7 @@ class ReIDModel:
                 [`timm.create_model`](https://huggingface.co/docs/timm/en/reference/models#timm.create_model).
 
         Returns:
-            DeepSORTFeatureExtractor: A new instance of DeepSORTFeatureExtractor.
+            ReIDModel: A new instance of `ReIDModel`.
         """
         if model_name not in timm.list_models(filter=model_name, pretrained=pretrained):
             raise ValueError(

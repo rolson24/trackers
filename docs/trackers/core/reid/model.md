@@ -49,4 +49,4 @@
     model.backbone_model.load_state_dict(state_dict)
     ```
 
-::: trackers.core.reid.model
+::: trackers.core.reid.model.ReIDModel
