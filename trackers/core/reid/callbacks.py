@@ -94,11 +94,19 @@ class WandbCallback(BaseCallback):
 
         self.run = wandb.init(config=config) if not wandb.run else wandb.run  # type: ignore
 
+        self.run.define_metric("train/batch_step")
+        self.run.define_metric("train/loss", step_metric="train/batch_step")
+
+        self.run.define_metric("validation/batch_step")
+        self.run.define_metric("validation/loss", step_metric="validation/batch_step")
+
     def on_train_batch_end(self, logs: dict, idx: int):
-        self.run.log(logs, step=idx)
+        logs["train/batch_step"] = idx
+        self.run.log(logs)
 
     def on_validation_batch_end(self, logs: dict, idx: int):
-        self.run.log(logs, step=idx)
+        logs["validation/batch_step"] = idx
+        self.run.log(logs)
 
     def on_checkpoint_save(self, checkpoint_path: str, epoch: int):
         self.run.log_model(

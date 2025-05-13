@@ -11,16 +11,18 @@
     from torch.utils.data import DataLoader
 
 
-    dataset = get_market1501_dataset(
-        data_dir="datasets/reid/Market-1501-v15.09.15/bounding_box_train"
+    train_dataset, val_dataset = get_market1501_dataset(
+        data_dir="datasets/reid/Market-1501-v15.09.15/bounding_box_train", split_ratio=0.9
     )
-    dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+    train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+    val_dataloader = DataLoader(val_dataset, batch_size=32, shuffle=False)
 
     model = ReIDModel.from_timm("resnetv2_50.a1h_in1k")
     model.train(
-        dataloader,
+        train_dataloader,
         epochs=10,
-        projection_dimension=len(dataset),
+        validation_loader=val_dataloader,
+        projection_dimension=len(train_dataset),
         freeze_backbone=True,
     )
     ```
