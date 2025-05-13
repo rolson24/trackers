@@ -33,4 +33,8 @@
     model = ReIDModel.from_timm("checkpoints/reid_model_10.safetensors")
     ```
 
+::: trackers.core.reid.dataset.base.TripletsDataset
+
+::: trackers.core.reid.dataset.market_1501.get_market1501_dataset
+
 ::: trackers.core.reid.model.ReIDModel

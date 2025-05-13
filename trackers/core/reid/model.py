@@ -131,8 +131,7 @@ class ReIDModel:
         """
         if os.path.exists(model_name_or_checkpoint_path):
             return _initialize_reid_model_from_checkpoint(
-                cls,
-                model_name_or_checkpoint_path,
+                cls, model_name_or_checkpoint_path
             )
         else:
             return _initialize_reid_model_from_timm(
