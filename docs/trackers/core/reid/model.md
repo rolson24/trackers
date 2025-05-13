@@ -29,7 +29,7 @@
 
     ```python
     from trackers import ReIDModel
-    
+
     model = ReIDModel.from_timm("checkpoints/reid_model_10.safetensors")
     ```
 
