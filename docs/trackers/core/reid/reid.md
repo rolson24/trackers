@@ -12,7 +12,8 @@
 
 
     train_dataset, val_dataset = get_market1501_dataset(
-        data_dir="datasets/reid/Market-1501-v15.09.15/bounding_box_train", split_ratio=0.9
+        data_dir="datasets/reid/Market-1501-v15.09.15/bounding_box_train",
+        split_ratio=0.9,
     )
     train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True)
     val_dataloader = DataLoader(val_dataset, batch_size=32, shuffle=False)
@@ -32,7 +33,7 @@
     ```python
     from trackers import ReIDModel
 
-    model = ReIDModel.from_timm("checkpoints/reid_model_10.safetensors")
+    model = ReIDModel.from_timm("logs/checkpoints/reid_model_10.safetensors")
     ```
 
 ::: trackers.core.reid.dataset.base.TripletsDataset
