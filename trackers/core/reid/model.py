@@ -32,10 +32,19 @@ def _initialize_reid_model_from_timm(
     if model_name_or_checkpoint_path not in timm.list_models(
         filter=model_name_or_checkpoint_path, pretrained=pretrained
     ):
-        raise ValueError(
-            f"Model {model_name_or_checkpoint_path} not found in timm. "
-            + "Please check the model name and try again."
+        probable_model_name_list = timm.list_models(
+            f"*{model_name_or_checkpoint_path}*", pretrained=pretrained
         )
+        if len(probable_model_name_list) == 0:
+            raise ValueError(
+                f"Model {model_name_or_checkpoint_path} not found in timm. "
+                + "Please check the model name and try again."
+            )
+        logger.warning(
+            f"Model {model_name_or_checkpoint_path} not found in timm. "
+            + f"Using {probable_model_name_list[0]} instead."
+        )
+        model_name_or_checkpoint_path = probable_model_name_list[0]
     if not get_pooled_features:
         kwargs["global_pool"] = ""
     model = timm.create_model(
@@ -118,7 +127,8 @@ class ReIDModel:
 
         Args:
             model_name_or_checkpoint_path (str): Name of the timm model to use or
-                path to a safetensors checkpoint.
+                path to a safetensors checkpoint. If the exact model name is not
+                found, the closest match from `timm.list_models` will be used.
             device (str): Device to run the model on.
             pretrained (bool): Whether to use pretrained weights from timm or not.
             get_pooled_features (bool): Whether to get the pooled features from the
