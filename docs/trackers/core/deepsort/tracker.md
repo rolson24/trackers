@@ -135,32 +135,32 @@ DeepSORT extends the original [SORT](../sort/tracker.md) algorithm by integratin
 
     === "CPU"
         ```bash
-        pip install "trackers[deepsort,cpu]"
+        pip install "trackers[reid,cpu]"
         ```
 
     === "CUDA 11.8"
         ```bash
-        pip install "trackers[deepsort,cu118]"
+        pip install "trackers[reid,cu118]"
         ```
 
     === "CUDA 12.4"
         ```bash
-        pip install "trackers[deepsort,cu124]"
+        pip install "trackers[reid,cu124]"
         ```
 
     === "CUDA 12.6"
         ```bash
-        pip install "trackers[deepsort,cu126]"
+        pip install "trackers[reid,cu126]"
         ```
 
     === "ROCm 6.1"
         ```bash
-        pip install "trackers[deepsort,rocm61]"
+        pip install "trackers[reid,rocm61]"
         ```
 
     === "ROCm 6.2.4"
         ```bash
-        pip install "trackers[deepsort,rocm624]"
+        pip install "trackers[reid,rocm624]"
         ```
 
 ::: trackers.core.deepsort.tracker.DeepSORTTracker
