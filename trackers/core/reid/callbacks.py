@@ -1,3 +1,4 @@
+import os
 from typing import Any, Optional
 
 import matplotlib.pyplot as plt
@@ -57,37 +58,6 @@ class TensorboardCallback(BaseCallback):
         self.writer.close()
 
 
-class MatplotlibCallback(BaseCallback):
-    def __init__(self):
-        self.metrics = {"train": {}, "val": {}}
-
-    def on_train_batch_end(self, logs: dict, idx: int):
-        for key, value in logs.items():
-            if key not in self.metrics["train"]:
-                self.metrics["train"][key] = []
-            self.metrics["train"][key].append((idx, value))
-
-    def on_validation_batch_end(self, logs: dict, idx: int):
-        for key, value in logs.items():
-            if key not in self.metrics["val"]:
-                self.metrics["val"][key] = []
-            self.metrics["val"][key].append((idx, value))
-
-    def on_end(self):
-        for phase in ["train", "val"]:
-            for key, values in self.metrics[phase].items():
-                if not values:
-                    continue
-                x, y = zip(*values)
-                plt.figure()
-                plt.plot(x, y, label=f"{phase}")
-                plt.xlabel("Step")
-                plt.ylabel(key)
-                plt.title(f"{key} ({phase})")
-                plt.legend()
-                plt.close()
-
-
 class WandbCallback(BaseCallback):
     def __init__(self, config: dict[str, Any]) -> None:
         import wandb
@@ -117,3 +87,44 @@ class WandbCallback(BaseCallback):
 
     def on_end(self):
         self.run.finish()
+
+
+class MatplotlibCallback(BaseCallback):
+    def __init__(self, save_dir: Optional[str] = None, filename_prefix: str = ""):
+        self.save_dir = save_dir or os.getcwd()
+        os.makedirs(self.save_dir, exist_ok=True)
+        self.filename_prefix = filename_prefix
+        self.train_history: dict[str, list[tuple[int, float]]] = {}
+        self.validation_history: dict[str, list[tuple[int, float]]] = {}
+
+    def on_train_batch_end(self, logs: dict, idx: int):
+        for key, value in logs.items():
+            self.train_history.setdefault(key, []).append((idx, value))
+
+    def on_validation_batch_end(self, logs: dict, idx: int):
+        for key, value in logs.items():
+            self.validation_history.setdefault(key, []).append((idx, value))
+
+    def on_end(self):
+        metrics = set(self.train_history) | set(self.validation_history)
+        for metric in metrics:
+            train_data = self.train_history.get(metric, [])
+            val_data = self.validation_history.get(metric, [])
+            plt.figure()
+            if train_data:
+                x_train, y_train = zip(*train_data)
+                plt.plot(x_train, y_train, label="train", color="blue", marker="o")
+            if val_data:
+                x_val, y_val = zip(*val_data)
+                plt.plot(x_val, y_val, label="validation", color="orange", marker="x")
+            plt.title(metric)
+            plt.xlabel("batch")
+            plt.ylabel(metric)
+            plt.legend()
+            if self.save_dir:
+                filepath = os.path.join(
+                    self.save_dir, f"{self.filename_prefix}{metric}.png"
+                )
+                plt.savefig(filepath)
+            plt.show()
+            plt.close()
