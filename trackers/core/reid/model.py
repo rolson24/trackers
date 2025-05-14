@@ -352,6 +352,7 @@ class ReIDModel:
         # Training loop over epochs
         for epoch in tqdm(range(epochs), desc="Training"):
             # Training loop over batches
+            accumulated_train_logs: dict[str, Union[float, int]] = {}
             for idx, data in tqdm(
                 enumerate(train_loader),
                 total=len(train_loader),
@@ -378,13 +379,24 @@ class ReIDModel:
                     anchor_image, positive_image, negative_image
                 )
 
+                for key, value in train_logs.items():
+                    accumulated_train_logs[key] = (
+                        accumulated_train_logs.get(key, 0) + value
+                    )
+
                 if callbacks:
                     for callback in callbacks:
-                        callback.on_train_batch_end(
-                            train_logs, epoch * len(train_loader) + idx
-                        )
+                        for key, value in train_logs.items():
+                            callback.on_train_batch_end(
+                                {f"batch/{key}": value}, epoch * len(train_loader) + idx
+                            )
+
+            if callbacks:
+                for callback in callbacks:
+                    callback.on_train_epoch_end(accumulated_train_logs, epoch + 1)
 
             # Validation loop over batches
+            accumulated_validation_logs: dict[str, Union[float, int]] = {}
             if validation_loader is not None:
                 for idx, data in tqdm(
                     enumerate(validation_loader),
@@ -412,11 +424,24 @@ class ReIDModel:
                         anchor_image, positive_image, negative_image
                     )
 
+                    for key, value in validation_logs.items():
+                        accumulated_validation_logs[key] = (
+                            accumulated_validation_logs.get(key, 0) + value
+                        )
+
                     if callbacks:
                         for callback in callbacks:
-                            callback.on_validation_batch_end(
-                                validation_logs, epoch * len(train_loader) + idx
-                            )
+                            for key, value in validation_logs.items():
+                                callback.on_validation_batch_end(
+                                    {f"batch/{key}": value},
+                                    epoch * len(train_loader) + idx,
+                                )
+
+            if callbacks:
+                for callback in callbacks:
+                    callback.on_validation_epoch_end(
+                        accumulated_validation_logs, epoch + 1
+                    )
 
             # Save checkpoint
             if (

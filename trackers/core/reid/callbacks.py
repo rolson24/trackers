@@ -11,10 +11,16 @@ class BaseCallback:
     def on_train_batch_end(self, logs: dict, idx: int):
         pass
 
+    def on_train_epoch_end(self, logs: dict, epoch: int):
+        pass
+
     def on_validation_batch_start(self, logs: dict, idx: int):
         pass
 
     def on_validation_batch_end(self, logs: dict, idx: int):
+        pass
+
+    def on_validation_epoch_end(self, logs: dict, epoch: int):
         pass
 
     def on_checkpoint_save(self, checkpoint_path: str, epoch: int):
@@ -49,9 +55,13 @@ class TensorboardCallback(BaseCallback):
         for key, value in logs.items():
             self.writer.add_scalar(key, value, idx)
 
-    def on_validation_batch_end(self, logs: dict, idx: int):
+    def on_train_epoch_end(self, logs: dict, epoch: int):
         for key, value in logs.items():
-            self.writer.add_scalar(key, value, idx)
+            self.writer.add_scalar(key, value, epoch)
+
+    def on_validation_epoch_end(self, logs: dict, epoch: int):
+        for key, value in logs.items():
+            self.writer.add_scalar(key, value, epoch)
 
     def on_end(self):
         self.writer.flush()
