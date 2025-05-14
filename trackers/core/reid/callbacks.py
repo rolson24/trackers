@@ -1,4 +1,3 @@
-import os
 from typing import Any, Optional
 
 import matplotlib.pyplot as plt
@@ -105,10 +104,7 @@ class WandbCallback(BaseCallback):
 
 
 class MatplotlibCallback(BaseCallback):
-    def __init__(self, save_dir: Optional[str] = None, filename_prefix: str = ""):
-        self.save_dir = save_dir or os.getcwd()
-        os.makedirs(self.save_dir, exist_ok=True)
-        self.filename_prefix = filename_prefix
+    def __init__(self):
         self.train_history: dict[str, list[tuple[int, float]]] = {}
         self.validation_history: dict[str, list[tuple[int, float]]] = {}
 
@@ -116,9 +112,13 @@ class MatplotlibCallback(BaseCallback):
         for key, value in logs.items():
             self.train_history.setdefault(key, []).append((idx, value))
 
-    def on_validation_batch_end(self, logs: dict, idx: int):
+    def on_train_epoch_end(self, logs: dict, epoch: int):
         for key, value in logs.items():
-            self.validation_history.setdefault(key, []).append((idx, value))
+            self.train_history.setdefault(key, []).append((epoch, value))
+
+    def on_validation_epoch_end(self, logs: dict, epoch: int):
+        for key, value in logs.items():
+            self.validation_history.setdefault(key, []).append((epoch, value))
 
     def on_end(self):
         metrics = set(self.train_history) | set(self.validation_history)
@@ -136,10 +136,5 @@ class MatplotlibCallback(BaseCallback):
             plt.xlabel("batch")
             plt.ylabel(metric)
             plt.legend()
-            if self.save_dir:
-                filepath = os.path.join(
-                    self.save_dir, f"{self.filename_prefix}{metric}.png"
-                )
-                plt.savefig(filepath)
             plt.show()
             plt.close()
