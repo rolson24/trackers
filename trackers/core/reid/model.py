@@ -393,7 +393,7 @@ class ReIDModel:
 
             if callbacks:
                 for callback in callbacks:
-                    callback.on_train_epoch_end(accumulated_train_logs, epoch + 1)
+                    callback.on_train_epoch_end(accumulated_train_logs, epoch)
 
             # Validation loop over batches
             accumulated_validation_logs: dict[str, Union[float, int]] = {}
@@ -439,9 +439,7 @@ class ReIDModel:
 
             if callbacks:
                 for callback in callbacks:
-                    callback.on_validation_epoch_end(
-                        accumulated_validation_logs, epoch + 1
-                    )
+                    callback.on_validation_epoch_end(accumulated_validation_logs, epoch)
 
             # Save checkpoint
             if (
