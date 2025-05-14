@@ -263,8 +263,9 @@ class ReIDModel:
         optimizer_class: str = "torch.optim.Adam",
         learning_rate: float = 5e-5,
         optimizer_kwargs: dict[str, Any] = {},
+        random_state: Optional[Union[int, float, str, bytes, bytearray]] = None,
         checkpoint_interval: Optional[int] = None,
-        checkpoint_dir: str = "checkpoints",
+        log_dir: str = "logs",
         log_to_matplotlib: bool = False,
         log_to_tensorboard: bool = False,
         log_to_wandb: bool = False,
@@ -282,8 +283,10 @@ class ReIDModel:
             optimizer_class (str): The optimizer class to use.
             learning_rate (float): The learning rate to use for the optimizer.
             optimizer_kwargs (dict[str, Any]): The optimizer kwargs to use.
+            random_state (Optional[Union[int, float, str, bytes, bytearray]]): The
+                random state to use for the training.
             checkpoint_interval (Optional[int]): The interval to save checkpoints.
-            checkpoint_dir (str): The directory to save checkpoints.
+            log_dir (str): The directory to save logs.
             log_to_matplotlib (bool): Whether to log to matplotlib.
             log_to_tensorboard (bool): Whether to log to tensorboard.
             log_to_wandb (bool): Whether to log to wandb. If `checkpoint_interval` is
@@ -292,7 +295,12 @@ class ReIDModel:
                 `WANDB_PROJECT` and `WANDB_ENTITY`. For more details, refer to
                 [wandb environment variables](https://docs.wandb.ai/guides/track/environment-variables).
         """
-        os.makedirs(checkpoint_dir, exist_ok=True)
+        os.makedirs(log_dir, exist_ok=True)
+        os.makedirs(os.path.join(log_dir, "checkpoints"), exist_ok=True)
+        os.makedirs(os.path.join(log_dir, "tensorboard_logs"), exist_ok=True)
+
+        if random_state is not None:
+            torch.manual_seed(random_state)
 
         self.add_projection_layer(projection_dimension, freeze_backbone)
 
@@ -307,6 +315,7 @@ class ReIDModel:
             "learning_rate": learning_rate,
             "optimizer_class": optimizer_class,
             "optimizer_kwargs": optimizer_kwargs,
+            "random_state": random_state,
             "projection_dimension": projection_dimension,
             "freeze_backbone": freeze_backbone,
             "model_metadata": self.model_metadata,
@@ -329,7 +338,11 @@ class ReIDModel:
             try:
                 from trackers.core.reid.callbacks import TensorboardCallback
 
-                callbacks.append(TensorboardCallback())
+                callbacks.append(
+                    TensorboardCallback(
+                        log_dir=os.path.join(log_dir, "tensorboard_logs")
+                    )
+                )
             except (ImportError, AttributeError) as e:
                 logger.error(
                     "Metric logging dependencies are not installed. "
@@ -448,7 +461,7 @@ class ReIDModel:
             ):
                 state_dict = self.backbone_model.state_dict()
                 checkpoint_path = os.path.join(
-                    checkpoint_dir, f"reid_model_{epoch + 1}.safetensors"
+                    log_dir, "checkpoints", f"reid_model_{epoch + 1}.safetensors"
                 )
                 save_file(
                     state_dict,

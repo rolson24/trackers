@@ -170,6 +170,6 @@ test.py
 **.pth
 .DS_Store
 data/
-checkpoints/
+logs/
 runs/
 wandb/
