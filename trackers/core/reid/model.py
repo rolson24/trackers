@@ -17,8 +17,6 @@ from tqdm.auto import tqdm
 
 from trackers.core.reid.callbacks import BaseCallback
 from trackers.core.reid.metrics import (
-    AnchorToNegativeDistanceMetric,
-    AnchorToPositiveDistanceMetric,
     TripletAccuracyMetric,
     TripletMetric,
 )
@@ -356,11 +354,7 @@ class ReIDModel:
             weight_decay=weight_decay,
         )
         self.criterion = nn.TripletMarginLoss(margin=triplet_margin)
-        metrics_list: list[TripletMetric] = [
-            TripletAccuracyMetric(),
-            AnchorToPositiveDistanceMetric(),
-            AnchorToNegativeDistanceMetric(),
-        ]
+        metrics_list: list[TripletMetric] = [TripletAccuracyMetric()]
 
         config = {
             "epochs": epochs,
