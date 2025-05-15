@@ -158,7 +158,6 @@ class MatplotlibCallback(BaseCallback):
 
         plot_idx = 0
 
-        # Plot batch metrics
         for metric_name in batch_metrics_names:
             ax = axes[plot_idx]
             train_data = self.train_history.get(metric_name, [])
@@ -171,7 +170,7 @@ class MatplotlibCallback(BaseCallback):
                 plotted_anything = True
             if val_data:
                 x_val, y_val = zip(*val_data)
-                ax.plot(x_val, y_val, label="validation", marker="x")
+                ax.plot(x_val, y_val, label="validation", marker="o", linestyle="--")
                 plotted_anything = True
 
             base_metric_name = metric_name.split("/")[-1]
@@ -208,7 +207,7 @@ class MatplotlibCallback(BaseCallback):
 
             if validation_series_data:
                 x_pts, y_pts = zip(*validation_series_data)
-                ax.plot(x_pts, y_pts, label="validation", marker="x")
+                ax.plot(x_pts, y_pts, label="validation", marker="o", linestyle="--")
                 plotted_anything_for_group = True
 
             ax.set_title(f"Epoch {base_name.capitalize()}")
