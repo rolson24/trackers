@@ -373,7 +373,7 @@ class ReIDModel:
             try:
                 from trackers.core.reid.callbacks import MatplotlibCallback
 
-                callbacks.append(MatplotlibCallback())
+                callbacks.append(MatplotlibCallback(log_dir=log_dir))
             except (ImportError, AttributeError) as e:
                 logger.error(
                     "Metric logging dependencies are not installed. "

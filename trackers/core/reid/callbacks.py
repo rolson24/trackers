@@ -1,3 +1,4 @@
+import os
 from typing import Any, Optional
 
 import matplotlib.pyplot as plt
@@ -104,7 +105,8 @@ class WandbCallback(BaseCallback):
 
 
 class MatplotlibCallback(BaseCallback):
-    def __init__(self, max_columns: int = 3):
+    def __init__(self, log_dir: str, max_columns: int = 3):
+        self.log_dir = log_dir
         self.max_columns = max_columns
         self.train_history: dict[str, list[tuple[int, float]]] = {}
         self.validation_history: dict[str, list[tuple[int, float]]] = {}
@@ -223,5 +225,6 @@ class MatplotlibCallback(BaseCallback):
             axes[j].set_visible(False)
 
         plt.tight_layout()
+        fig.savefig(os.path.join(self.log_dir, "metrics_plot.png"))
         plt.show()
         plt.close(fig)
