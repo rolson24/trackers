@@ -66,12 +66,14 @@ class TripletsDataset(Dataset):
             if not tracker_path.is_dir():
                 continue
 
-            image_paths = sorted([
-                str(image_path)
-                for image_path in tracker_path.glob("*")
-                if
-                image_path.suffix.lower() in image_extensions and image_path.is_file()
-            ])
+            image_paths = sorted(
+                [
+                    str(image_path)
+                    for image_path in tracker_path.glob("*")
+                    if image_path.suffix.lower() in image_extensions
+                    and image_path.is_file()
+                ]
+            )
 
             if image_paths:
                 tracker_id_to_images[tracker_path.name] = image_paths
