@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+from pathlib import Path
 from typing import Optional, Tuple, Union
 
 import torch
@@ -39,6 +40,46 @@ class TripletsDataset(Dataset):
         self.tracker_id_to_images = validate_tracker_id_to_images(tracker_id_to_images)
         self.transforms = transforms or ToTensor()
         self.tracker_ids = list(self.tracker_id_to_images.keys())
+
+    @classmethod
+    def from_image_directories(
+        cls,
+        root_directory: str,
+        transforms: Optional[Compose] = None,
+        image_extensions: Tuple[str, ...] = (".jpg", ".jpeg", ".png"),
+    ) -> TripletsDataset:
+        """
+        Create TripletsDataset from a directory structured by tracker IDs.
+
+        Args:
+            root_directory (str): Root directory with tracker folders.
+            transforms (Optional[Compose]): Optional image transformations.
+            image_extensions (Tuple[str, ...]): Valid image extensions to load.
+
+        Returns:
+            TripletsDataset: An initialized dataset.
+        """
+        root_path = Path(root_directory)
+        tracker_id_to_images = {}
+
+        for tracker_path in sorted(root_path.iterdir()):
+            if not tracker_path.is_dir():
+                continue
+
+            image_paths = sorted([
+                str(image_path)
+                for image_path in tracker_path.glob("*")
+                if
+                image_path.suffix.lower() in image_extensions and image_path.is_file()
+            ])
+
+            if image_paths:
+                tracker_id_to_images[tracker_path.name] = image_paths
+
+        return cls(
+            tracker_id_to_images=tracker_id_to_images,
+            transforms=transforms,
+        )
 
     def __len__(self) -> int:
         return len(self.tracker_ids)

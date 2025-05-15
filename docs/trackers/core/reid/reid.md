@@ -1,10 +1,16 @@
-# Re-Identification Models for Object Tracking
+---
+comments: true
+---
 
-Re-identification (ReID) models are a key component in modern multi-object tracking systems. They extract appearance features from detected objects, enabling trackers like [DeepSORT](../deepsort/tracker.md) and ByteTrack to reliably associate identities across frames—even through occlusions, re-entries, and challenging scenarios.
+# Re-Identification (ReID)
+
+Re-identification (ReID) enables object tracking systems to recognize the same object or identity across different frames—even when occlusion, appearance changes, or re-entries occur. This is essential for robust, long-term multi-object tracking.
 
 ## Installation
 
-!!! example "Install ReID Dependencies"
+To use ReID features in the trackers library, install the package with the appropriate dependencies for your hardware:
+
+!!! example "Install trackers with ReID support"
 
     === "CPU"
         ```bash
@@ -36,23 +42,13 @@ Re-identification (ReID) models are a key component in modern multi-object track
         pip install "trackers[reid,rocm624]"
         ```
 
-## Training a ReID Model for Person Re-Identification
+## ReIDModel
 
-We will use the [Market-1501](https://openaccess.thecvf.com/content_iccv_2015/papers/Zheng_Scalable_Person_Re-Identification_ICCV_2015_paper.pdf)
-dataset to train a ReID model for person re-identification.
+The `ReIDModel` class provides a flexible interface to extract appearance features from object detections, which can be used by trackers to associate identities across frames.
 
-```python
-from trackers.core.reid import get_market1501_dataset
+### Loading a ReIDModel
 
-train_dataset, val_dataset = get_market1501_dataset(
-    data_dir="datasets/reid/Market-1501-v15.09.15/bounding_box_train",
-    split_ratio=0.9,
-)
-```
-
-The `get_market1501_dataset` function returns a tuple of two datasets: `train_dataset` and `val_dataset` which are `TripletDataset`s that yield triplets of anchor, positive, and negative samples.
-
-Next, we initialize a ReID model using the `from_timm` class method which initializes a pre-trained model from [timm](https://huggingface.co/docs/timm/en/index) which is able to extract pooled features corresponding to a given input image.
+You can initialize a `ReIDModel` from any supported pretrained model in the [`timm`](https://huggingface.co/docs/timm/en/index) library using the `from_timm` method.
 
 ```python
 from trackers import ReIDModel
@@ -60,66 +56,179 @@ from trackers import ReIDModel
 reid_model = ReIDModel.from_timm("resnetv2_50.a1h_in1k")
 ```
 
-Now, we can train this model on the Market-1501 dataset.
+### Supported Models
+
+The `ReIDModel` supports all models available in the timm library. You can list available models using:
+
+```python
+import timm
+print(timm.list_models())
+```
+
+### Extracting Embeddings
+
+To extract embeddings (feature vectors) from detected objects in an image frame, use the `extract_features` method. It crops each detected bounding box from the frame, applies necessary transforms, and passes the crops through the backbone model:
+
+```python
+import cv2
+import supervision as sv
+from trackers import ReIDModel
+from inference import get_model
+
+reid_model = ReIDModel.from_timm("resnetv2_50.a1h_in1k")
+model = get_model(model_id="yolov11m-640")
+
+image = cv2.imread("<INPUT_IMAGE_PATH>")
+
+result = model.infer(image)[0]
+detections = sv.Detections.from_inference(result)
+features = reid_model.extract_features(image, detections)
+```
+
+## Tracking Integration
+
+ReID models are integrated into trackers like DeepSORT to improve identity association by providing appearance features alongside motion cues.
+
+```python
+import supervision as sv
+from trackers import DeepSORTTracker, ReIDModel
+from inference import get_model
+
+reid_model = ReIDModel.from_timm("resnetv2_50.a1h_in1k")
+tracker = DeepSORTTracker(reid_model=reid_model)
+model = get_model(model_id="yolov11m-640")
+annotator = sv.LabelAnnotator(text_position=sv.Position.CENTER)
+
+def callback(frame, _):
+    result = model.infer(frame)[0]
+    detections = sv.Detections.from_inference(result)
+    detections = tracker.update(detections, frame)
+    return annotator.annotate(frame, detections, labels=detections.tracker_id)
+
+sv.process_video(
+    source_path="<INPUT_VIDEO_PATH>",
+    target_path="<OUTPUT_VIDEO_PATH>",
+    callback=callback,
+)
+```
+
+This setup extracts appearance embeddings for detected objects and uses them in the tracker to maintain consistent IDs across frames.
+
+## Training
+
+You can train a custom ReID model using the `TripletsDataset` class, which provides triplets of anchor, positive, and negative samples for metric learning.
+
+Fine-tuning a pre-trained ReID model or training one from scratch can be beneficial when:
+
+- Your target domain (specific camera angles, lighting, object appearances) differs significantly from the data the pre-trained model was exposed to.
+
+- You have a custom dataset featuring unique identities or appearance variations not covered by generic models.
+
+- You aim to boost performance for specific tracking scenarios where general models might underperform. This allows the model to learn features more specific to your data.
+
+### Dataset Structure
+
+Prepare your dataset with the following directory structure, where each subfolder represents a unique identity:
+
+```rext
+root/
+├── identity_1/
+│   ├── image_1.png
+│   ├── image_2.png
+│   └── image_3.png
+├── identity_2/
+│   ├── image_1.png
+│   ├── image_2.png
+│   └── image_3.png
+├── identity_3/
+│   ├── image_1.png
+│   ├── image_2.png
+│   └── image_3.png
+...
+```
+
+Each folder contains images of the same object or person under different conditions.
 
 ```python
 from torch.utils.data import DataLoader
+from trackers.core.reid.dataset.base import TripletsDataset
+from trackers import ReIDModel
 
-train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-val_dataloader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+train_dataset = TripletsDataset.from_image_directories(
+    root_directory="<DATASET_ROOT_DIRECTORY>",
+)
+
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+
+reid_model = ReIDModel.from_timm("resnetv2_50.a1h_in1k")
 
 reid_model.train(
-    train_dataloader,
+    train_loader,
     epochs=10,
-    validation_loader=val_dataloader,
-    learning_rate=5e-4,
-    weight_decay=1e-2,
     projection_dimension=len(train_dataset),
     freeze_backbone=True,
+    learning_rate=5e-4,
+    weight_decay=1e-2,
     checkpoint_interval=5,
 )
 ```
 
-!!! note
-    By setting `projection_dimension=len(train_dataset)`, we are adding a projection layer to the model to project the features to a space of dimension equal to the number of unique identities in the dataset. We're also freezing the parameters in the pre-trained backbone model by setting `freeze_backbone=True`. Thus we only train the projection layer using Triplet Loss to learn the identity of each sample.
+## Metrics and Monitoring
 
-## Using Fine-tuned ReID Model with a Tracker
+During training, the model monitors metrics such as triplet loss and triplet accuracy to evaluate embedding quality.
 
-Now, we can use this fine-tuned ReID model checkpoint with a tracker to extract appearance features from detected objects and use them to associate identities across frames.
+- Triplet Loss: Encourages embeddings of the same identity to be close and different identities to be far apart.
 
-=== "DeepSORT"
+- Triplet Accuracy: Measures how often the model correctly ranks positive samples closer than negatives.
 
-    ```python hl_lines="2 5-6 13"
-    import supervision as sv
-    from trackers import DeepSORTTracker, ReIDModel
-    from inference import get_model
+You can enable logging to various backends (matplotlib, TensorBoard, Weights & Biases) during training for real-time monitoring:
 
-    reid_model = ReIDModel.from_timm("logs/checkpoints/reid_model_10.safetensors")
-    tracker = DeepSORTTracker(reid_model=reid_model)
-    model = get_model(model_id="yolov11m-640")
-    annotator = sv.LabelAnnotator(text_position=sv.Position.CENTER)
+```python
+from torch.utils.data import DataLoader
+from trackers.core.reid.dataset.base import TripletsDataset
+from trackers import ReIDModel
 
-    def callback(frame, _):
-        result = model.infer(frame)[0]
-        detections = sv.Detections.from_inference(result)
-        detections = tracker.update(detections, frame)
-        return annotator.annotate(frame, detections, labels=detections.tracker_id)
+train_dataset = TripletsDataset.from_image_directories(
+    root_directory="<DATASET_ROOT_DIRECTORY>",
+)
 
-    sv.process_video(
-        source_path="input.mp4",
-        target_path="output.mp4",
-        callback=callback,
-    )
-    ```
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 
-=== "ByteTrack"
+reid_model = ReIDModel.from_timm("resnetv2_50.a1h_in1k")
 
-    Coming Soon!
+reid_model.train(
+    train_loader,
+    epochs=10,
+    projection_dimension=len(train_dataset),
+    freeze_backbone=True,
+    learning_rate=5e-4,
+    weight_decay=1e-2,
+    checkpoint_interval=5,
+    log_to_matplotlib=True,
+    log_to_tensorboard=True,
+    log_to_wandb=True,
+)
+```
 
-## API Reference
+To use the logging capabilities for Matplotlib, TensorBoard, or Weights & Biases, you might need to install additional dependencies.
+
+```bash
+pip install "trackers[metrics]"
+```
+
+## Resuming from Checkpoints
+
+You can load custom-trained weights or resume training from a checkpoint:
+
+```python
+from trackers import ReIDModel
+
+reid_model = ReIDModel.from_timm("<PATH_TO_CUSTOM_SAFETENSORS_CHECKPOINT>")
+```
+
+## API
+
 
 ::: trackers.core.reid.model.ReIDModel
 
 ::: trackers.core.reid.dataset.base.TripletsDataset
-
-::: trackers.core.reid.dataset.market_1501.get_market1501_dataset
