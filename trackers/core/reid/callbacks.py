@@ -176,7 +176,8 @@ class MatplotlibCallback(BaseCallback):
                 plotted_anything = True
 
             base_metric_name = metric_name.split("/")[-1]
-            ax.set_title(f"Batch {base_metric_name.capitalize()}")
+            plot_title = " ".join([item.capitalize() for item in base_name.split("_")])
+            ax.set_title(f"Batch {plot_title}")
             ax.set_xlabel("batch")
             ax.set_ylabel(base_metric_name)
             if plotted_anything:
@@ -212,7 +213,8 @@ class MatplotlibCallback(BaseCallback):
                 ax.plot(x_pts, y_pts, label="validation", marker="o", linestyle="--")
                 plotted_anything_for_group = True
 
-            ax.set_title(f"Epoch {base_name.capitalize()}")
+            plot_title = " ".join([item.capitalize() for item in base_name.split("_")])
+            ax.set_title(f"Epoch {plot_title}")
             ax.set_xlabel("epoch")
             ax.set_ylabel(base_name)
 
