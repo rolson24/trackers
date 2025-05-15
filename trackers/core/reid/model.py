@@ -16,6 +16,12 @@ from torchvision.transforms import Compose, ToPILImage
 from tqdm.auto import tqdm
 
 from trackers.core.reid.callbacks import BaseCallback
+from trackers.core.reid.metrics import (
+    AnchorToNegativeDistanceMetric,
+    AnchorToPositiveDistanceMetric,
+    TripletAccuracyMetric,
+    TripletMetric,
+)
 from trackers.log import get_logger
 from trackers.utils.torch_utils import load_safetensors_checkpoint, parse_device_spec
 
@@ -213,6 +219,7 @@ class ReIDModel:
         anchor_image: torch.Tensor,
         positive_image: torch.Tensor,
         negative_image: torch.Tensor,
+        metrics_list: list[TripletMetric],
     ) -> dict[str, float]:
         """
         Perform a single training step.
@@ -221,6 +228,7 @@ class ReIDModel:
             anchor_image (torch.Tensor): The anchor image.
             positive_image (torch.Tensor): The positive image.
             negative_image (torch.Tensor): The negative image.
+            metrics_list (list[Metric]): The list of metrics to update.
         """
         self.optimizer.zero_grad()
         anchor_image_features = self.backbone_model(anchor_image)
@@ -235,13 +243,26 @@ class ReIDModel:
         loss.backward()
         self.optimizer.step()
 
-        return {"train/loss": loss.item()}
+        # Update metrics
+        for metric in metrics_list:
+            metric.update(
+                anchor_image_features.detach(),
+                positive_image_features.detach(),
+                negative_image_features.detach(),
+            )
+
+        train_logs = {"train/loss": loss.item()}
+        for metric in metrics_list:
+            train_logs[f"train/{metric!s}"] = metric.compute()
+
+        return train_logs
 
     def _validation_step(
         self,
         anchor_image: torch.Tensor,
         positive_image: torch.Tensor,
         negative_image: torch.Tensor,
+        metrics_list: list[TripletMetric],
     ) -> dict[str, float]:
         """
         Perform a single validation step.
@@ -250,19 +271,32 @@ class ReIDModel:
             anchor_image (torch.Tensor): The anchor image.
             positive_image (torch.Tensor): The positive image.
             negative_image (torch.Tensor): The negative image.
+            metrics_list (list[Metric]): The list of metrics to update.
         """
         with torch.inference_mode():
             anchor_image_features = self.backbone_model(anchor_image)
             positive_image_features = self.backbone_model(positive_image)
             negative_image_features = self.backbone_model(negative_image)
 
-        loss = self.criterion(
-            anchor_image_features,
-            positive_image_features,
-            negative_image_features,
-        )
+            loss = self.criterion(
+                anchor_image_features,
+                positive_image_features,
+                negative_image_features,
+            )
 
-        return {"validation/loss": loss.item()}
+            # Update metrics
+            for metric in metrics_list:
+                metric.update(
+                    anchor_image_features.detach(),
+                    positive_image_features.detach(),
+                    negative_image_features.detach(),
+                )
+
+        validation_logs = {"validation/loss": loss.item()}
+        for metric in metrics_list:
+            validation_logs[f"validation/{metric!s}"] = metric.compute()
+
+        return validation_logs
 
     def train(
         self,
@@ -315,13 +349,18 @@ class ReIDModel:
 
         self.add_projection_layer(projection_dimension, freeze_backbone)
 
-        # Initialize optimizer and criterion
+        # Initialize optimizer, criterion and metrics
         self.optimizer = optim.Adam(
             self.backbone_model.parameters(),
             lr=learning_rate,
             weight_decay=weight_decay,
         )
         self.criterion = nn.TripletMarginLoss(margin=triplet_margin)
+        metrics_list: list[TripletMetric] = [
+            TripletAccuracyMetric(),
+            AnchorToPositiveDistanceMetric(),
+            AnchorToNegativeDistanceMetric(),
+        ]
 
         config = {
             "epochs": epochs,
@@ -377,6 +416,10 @@ class ReIDModel:
 
         # Training loop over epochs
         for epoch in tqdm(range(epochs), desc="Training"):
+            # Reset metrics at the start of each epoch
+            for metric in metrics_list:
+                metric.reset()
+
             # Training loop over batches
             accumulated_train_logs: dict[str, Union[float, int]] = {}
             for idx, data in tqdm(
@@ -402,7 +445,7 @@ class ReIDModel:
                         )
 
                 train_logs = self._train_step(
-                    anchor_image, positive_image, negative_image
+                    anchor_image, positive_image, negative_image, metrics_list
                 )
 
                 for key, value in train_logs.items():
@@ -420,6 +463,11 @@ class ReIDModel:
             for key, value in accumulated_train_logs.items():
                 accumulated_train_logs[key] = value / len(train_loader)
 
+            # Compute and add training metrics to logs
+            for metric in metrics_list:
+                accumulated_train_logs[f"train/{metric!s}"] = metric.compute()
+            # Metrics are reset at the start of the next epoch or before validation
+
             if callbacks:
                 for callback in callbacks:
                     callback.on_train_epoch_end(accumulated_train_logs, epoch)
@@ -427,6 +475,9 @@ class ReIDModel:
             # Validation loop over batches
             accumulated_validation_logs: dict[str, Union[float, int]] = {}
             if validation_loader is not None:
+                # Reset metrics for validation
+                for metric in metrics_list:
+                    metric.reset()
                 for idx, data in tqdm(
                     enumerate(validation_loader),
                     total=len(validation_loader),
@@ -450,7 +501,7 @@ class ReIDModel:
                     negative_image = negative_image.to(self.device)
 
                     validation_logs = self._validation_step(
-                        anchor_image, positive_image, negative_image
+                        anchor_image, positive_image, negative_image, metrics_list
                     )
 
                     for key, value in validation_logs.items():
@@ -468,6 +519,13 @@ class ReIDModel:
 
                 for key, value in accumulated_validation_logs.items():
                     accumulated_validation_logs[key] = value / len(validation_loader)
+
+                # Compute and add validation metrics to logs
+                for metric in metrics_list:
+                    accumulated_validation_logs[f"validation/{metric!s}"] = (
+                        metric.compute()
+                    )
+                # Metrics will be reset at the start of the next training epoch loop
 
             if callbacks:
                 for callback in callbacks:
