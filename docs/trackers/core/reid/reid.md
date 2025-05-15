@@ -57,7 +57,7 @@ Next, we initialize a ReID model using the `from_timm` class method which initia
 ```python
 from trackers import ReIDModel
 
-model = ReIDModel.from_timm("resnetv2_50.a1h_in1k")
+reid_model = ReIDModel.from_timm("resnetv2_50.a1h_in1k")
 ```
 
 Now, we can train this model on the Market-1501 dataset.
@@ -68,11 +68,12 @@ from torch.utils.data import DataLoader
 train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 val_dataloader = DataLoader(val_dataset, batch_size=32, shuffle=False)
 
-model.train(
+reid_model.train(
     train_dataloader,
     epochs=10,
     validation_loader=val_dataloader,
     learning_rate=5e-4,
+    weight_decay=1e-2,
     projection_dimension=len(train_dataset),
     freeze_backbone=True,
     checkpoint_interval=5,
