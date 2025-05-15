@@ -7,6 +7,7 @@ import supervision as sv
 import timm
 import torch
 import torch.nn as nn
+import torch.optim as optim
 from safetensors.torch import save_file
 from timm.data import resolve_data_config
 from timm.data.transforms_factory import create_transform
@@ -270,10 +271,9 @@ class ReIDModel:
         validation_loader: Optional[DataLoader] = None,
         projection_dimension: Optional[int] = None,
         freeze_backbone: bool = False,
-        optimizer_class: str = "torch.optim.Adam",
         learning_rate: float = 5e-5,
         weight_decay: float = 0.0,
-        optimizer_kwargs: dict[str, Any] = {},
+        triplet_margin: float = 1.0,
         random_state: Optional[Union[int, float, str, bytes, bytearray]] = None,
         checkpoint_interval: Optional[int] = None,
         log_dir: str = "logs",
@@ -291,10 +291,9 @@ class ReIDModel:
             projection_dimension (Optional[int]): The dimension of the projection layer.
             freeze_backbone (bool): Whether to freeze the backbone of the model. The
                 backbone is only frozen if `projection_dimension` is specified.
-            optimizer_class (str): The optimizer class to use.
             learning_rate (float): The learning rate to use for the optimizer.
             weight_decay (float): The weight decay to use for the optimizer.
-            optimizer_kwargs (dict[str, Any]): The optimizer kwargs to use.
+            triplet_margin (float): The margin to use for the triplet loss.
             random_state (Optional[Union[int, float, str, bytes, bytearray]]): The
                 random state to use for the training.
             checkpoint_interval (Optional[int]): The interval to save checkpoints.
@@ -317,23 +316,21 @@ class ReIDModel:
         self.add_projection_layer(projection_dimension, freeze_backbone)
 
         # Initialize optimizer and criterion
-        self.optimizer = eval(optimizer_class)(
+        self.optimizer = optim.Adam(
             self.backbone_model.parameters(),
             lr=learning_rate,
             weight_decay=weight_decay,
-            **optimizer_kwargs,
         )
-        self.criterion = nn.TripletMarginLoss(margin=1.0)
+        self.criterion = nn.TripletMarginLoss(margin=triplet_margin)
 
         config = {
             "epochs": epochs,
-            "optimizer_class": optimizer_class,
             "learning_rate": learning_rate,
             "weight_decay": weight_decay,
-            "optimizer_kwargs": optimizer_kwargs,
             "random_state": random_state,
             "projection_dimension": projection_dimension,
             "freeze_backbone": freeze_backbone,
+            "triplet_margin": triplet_margin,
             "model_metadata": self.model_metadata,
         }
 
