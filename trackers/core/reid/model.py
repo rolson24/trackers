@@ -170,7 +170,7 @@ class ReIDModel:
             return np.array([])
 
         features = []
-        with torch.no_grad():
+        with torch.inference_mode():
             for box in detections.xyxy:
                 crop = sv.crop_image(image=frame, xyxy=[*box.astype(int)])
                 tensor = self.inference_transforms(crop).unsqueeze(0).to(self.device)
@@ -250,7 +250,7 @@ class ReIDModel:
             positive_image (torch.Tensor): The positive image.
             negative_image (torch.Tensor): The negative image.
         """
-        with torch.no_grad():
+        with torch.inference_mode():
             anchor_image_features = self.backbone_model(anchor_image)
             positive_image_features = self.backbone_model(positive_image)
             negative_image_features = self.backbone_model(negative_image)
@@ -272,6 +272,7 @@ class ReIDModel:
         freeze_backbone: bool = False,
         optimizer_class: str = "torch.optim.Adam",
         learning_rate: float = 5e-5,
+        weight_decay: float = 0.0,
         optimizer_kwargs: dict[str, Any] = {},
         random_state: Optional[Union[int, float, str, bytes, bytearray]] = None,
         checkpoint_interval: Optional[int] = None,
@@ -292,6 +293,7 @@ class ReIDModel:
                 backbone is only frozen if `projection_dimension` is specified.
             optimizer_class (str): The optimizer class to use.
             learning_rate (float): The learning rate to use for the optimizer.
+            weight_decay (float): The weight decay to use for the optimizer.
             optimizer_kwargs (dict[str, Any]): The optimizer kwargs to use.
             random_state (Optional[Union[int, float, str, bytes, bytearray]]): The
                 random state to use for the training.
@@ -316,14 +318,18 @@ class ReIDModel:
 
         # Initialize optimizer and criterion
         self.optimizer = eval(optimizer_class)(
-            self.backbone_model.parameters(), lr=learning_rate, **optimizer_kwargs
+            self.backbone_model.parameters(),
+            lr=learning_rate,
+            weight_decay=weight_decay,
+            **optimizer_kwargs,
         )
         self.criterion = nn.TripletMarginLoss(margin=1.0)
 
         config = {
             "epochs": epochs,
-            "learning_rate": learning_rate,
             "optimizer_class": optimizer_class,
+            "learning_rate": learning_rate,
+            "weight_decay": weight_decay,
             "optimizer_kwargs": optimizer_kwargs,
             "random_state": random_state,
             "projection_dimension": projection_dimension,
