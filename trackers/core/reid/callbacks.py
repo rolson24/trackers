@@ -1,6 +1,7 @@
 from typing import Any, Optional
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 class BaseCallback:
@@ -121,20 +122,53 @@ class MatplotlibCallback(BaseCallback):
             self.validation_history.setdefault(key, []).append((epoch, value))
 
     def on_end(self):
-        metrics = set(self.train_history) | set(self.validation_history)
-        for metric in metrics:
+        metrics = list(set(self.train_history) | set(self.validation_history))
+        if not metrics:
+            return
+        
+        # Sort metrics to have batch metrics first
+        metrics.sort(key=lambda m: 0 if m.startswith("batch/") else 1)
+        
+        # Calculate grid dimensions based on number of metrics
+        n_metrics = len(metrics)
+        n_cols = min(3, n_metrics)  # Max 3 columns
+        n_rows = (n_metrics + n_cols - 1) // n_cols  # Ceiling division
+        
+        # Create a single figure with subplots
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(5*n_cols, 4*n_rows))
+        # If there's only one subplot, axes won't be an array
+        if n_metrics == 1:
+            axes = np.array([axes])
+        # Flatten axes array for easy indexing
+        axes = axes.flatten() if n_metrics > 1 else [axes]
+        
+        # Plot each metric in its own subplot
+        for i, metric in enumerate(metrics):
+            ax = axes[i]
             train_data = self.train_history.get(metric, [])
             val_data = self.validation_history.get(metric, [])
-            plt.figure()
+            
             if train_data:
                 x_train, y_train = zip(*train_data)
-                plt.plot(x_train, y_train, label="train", color="blue", marker="o")
+                ax.plot(x_train, y_train, label="train", color="blue", marker="o")
             if val_data:
                 x_val, y_val = zip(*val_data)
-                plt.plot(x_val, y_val, label="validation", color="orange", marker="x")
-            plt.title(metric)
-            plt.xlabel("batch")
-            plt.ylabel(metric)
-            plt.legend()
-            plt.show()
-            plt.close()
+                ax.plot(x_val, y_val, label="validation", color="orange", marker="x")
+            
+            ax.set_title(metric)
+            # Set x-axis label based on metric name
+            if metric.startswith("batch/"):
+                ax.set_xlabel("batch")
+            else:
+                ax.set_xlabel("epoch")
+            ax.set_ylabel(metric)
+            ax.grid(True)
+            ax.legend()
+        
+        # Hide any unused subplots
+        for j in range(i+1, len(axes)):
+            axes[j].set_visible(False)
+        
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
