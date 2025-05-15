@@ -417,6 +417,9 @@ class ReIDModel:
                                 {f"batch/{key}": value}, epoch * len(train_loader) + idx
                             )
 
+            for key, value in accumulated_train_logs.items():
+                accumulated_train_logs[key] = value / len(train_loader)
+
             if callbacks:
                 for callback in callbacks:
                     callback.on_train_epoch_end(accumulated_train_logs, epoch)
@@ -462,6 +465,9 @@ class ReIDModel:
                                     {f"batch/{key}": value},
                                     epoch * len(train_loader) + idx,
                                 )
+
+                for key, value in accumulated_validation_logs.items():
+                    accumulated_validation_logs[key] = value / len(validation_loader)
 
             if callbacks:
                 for callback in callbacks:

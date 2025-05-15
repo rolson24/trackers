@@ -1,7 +1,6 @@
 from typing import Any, Optional
 
 import matplotlib.pyplot as plt
-import numpy as np
 
 
 class BaseCallback:
@@ -105,7 +104,8 @@ class WandbCallback(BaseCallback):
 
 
 class MatplotlibCallback(BaseCallback):
-    def __init__(self):
+    def __init__(self, max_columns: int = 3):
+        self.max_columns = max_columns
         self.train_history: dict[str, list[tuple[int, float]]] = {}
         self.validation_history: dict[str, list[tuple[int, float]]] = {}
 
@@ -122,51 +122,105 @@ class MatplotlibCallback(BaseCallback):
             self.validation_history.setdefault(key, []).append((epoch, value))
 
     def on_end(self):
-        metrics = list(set(self.train_history) | set(self.validation_history))
-        if not metrics:
+        all_metrics_data = list(
+            set(self.train_history.keys()) | set(self.validation_history.keys())
+        )
+        if not all_metrics_data:
             return
 
-        # Sort metrics to have batch metrics first
-        metrics.sort(key=lambda m: 0 if m.startswith("batch/") else 1)
+        batch_metrics_names = sorted(
+            [m for m in all_metrics_data if m.startswith("batch/")]
+        )
 
-        # Calculate grid dimensions based on number of metrics
-        n_metrics = len(metrics)
-        n_cols = min(3, n_metrics)  # Max 3 columns
-        n_rows = (n_metrics + n_cols - 1) // n_cols  # Ceiling division
+        epoch_metrics_all_keys = sorted(
+            [m for m in all_metrics_data if not m.startswith("batch/")]
+        )
+        epoch_metrics_grouped = {}
+        for metric_name in epoch_metrics_all_keys:
+            parts = metric_name.split("/")
+            base_name = parts[-1]
+            epoch_metrics_grouped.setdefault(base_name, []).append(metric_name)
 
-        # Create a single figure with subplots
-        fig, axes = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 4 * n_rows))
-        # If there's only one subplot, axes won't be an array
-        if n_metrics == 1:
-            axes = np.array([axes])
-        # Flatten axes array for easy indexing
-        axes = axes.flatten() if n_metrics > 1 else [axes]
+        num_batch_plots = len(batch_metrics_names)
+        num_epoch_group_plots = len(epoch_metrics_grouped)
+        num_plots = num_batch_plots + num_epoch_group_plots
 
-        # Plot each metric in its own subplot
-        for i, metric in enumerate(metrics):
-            ax = axes[i]
-            train_data = self.train_history.get(metric, [])
-            val_data = self.validation_history.get(metric, [])
+        if num_plots == 0:
+            return
 
+        n_cols = min(self.max_columns, num_plots)
+        n_rows = (num_plots + n_cols - 1) // n_cols
+
+        fig, axes = plt.subplots(
+            n_rows, n_cols, figsize=(5 * n_cols, 4 * n_rows), squeeze=False
+        )
+        axes = axes.flatten()
+
+        plot_idx = 0
+
+        # Plot batch metrics
+        for metric_name in batch_metrics_names:
+            ax = axes[plot_idx]
+            train_data = self.train_history.get(metric_name, [])
+            val_data = self.validation_history.get(metric_name, [])
+
+            plotted_anything = False
             if train_data:
                 x_train, y_train = zip(*train_data)
-                ax.plot(x_train, y_train, label="train", color="blue", marker="o")
+                ax.plot(x_train, y_train, label="train", marker="o")
+                plotted_anything = True
             if val_data:
                 x_val, y_val = zip(*val_data)
-                ax.plot(x_val, y_val, label="validation", color="orange", marker="x")
+                ax.plot(x_val, y_val, label="validation", marker="x")
+                plotted_anything = True
 
-            ax.set_title(metric)
-            # Set x-axis label based on metric name
-            if metric.startswith("batch/"):
-                ax.set_xlabel("batch")
-            else:
-                ax.set_xlabel("epoch")
-            ax.set_ylabel(metric)
+            base_metric_name = metric_name.split("/")[-1]
+            ax.set_title(f"Batch {base_metric_name.capitalize()}")
+            ax.set_xlabel("batch")
+            ax.set_ylabel(base_metric_name)
+            if plotted_anything:
+                ax.legend()
             ax.grid(True)
-            ax.legend()
+            plot_idx += 1
 
-        # Hide any unused subplots
-        for j in range(i + 1, len(axes)):
+        for base_name, _ in sorted(epoch_metrics_grouped.items()):
+            ax = axes[plot_idx]
+            plotted_anything_for_group = False
+
+            train_series_data = []
+            if f"train/{base_name}" in self.train_history:
+                train_series_data = self.train_history[f"train/{base_name}"]
+            elif base_name in self.train_history:
+                train_series_data = self.train_history[base_name]
+
+            if train_series_data:
+                x_pts, y_pts = zip(*train_series_data)
+                ax.plot(x_pts, y_pts, label="train", marker="o")
+                plotted_anything_for_group = True
+
+            validation_series_data = []
+            if f"validation/{base_name}" in self.validation_history:
+                validation_series_data = self.validation_history[
+                    f"validation/{base_name}"
+                ]
+            elif base_name in self.validation_history:
+                validation_series_data = self.validation_history[base_name]
+
+            if validation_series_data:
+                x_pts, y_pts = zip(*validation_series_data)
+                ax.plot(x_pts, y_pts, label="validation", marker="x")
+                plotted_anything_for_group = True
+
+            ax.set_title(f"Epoch {base_name.capitalize()}")
+            ax.set_xlabel("epoch")
+            ax.set_ylabel(base_name)
+
+            if plotted_anything_for_group:
+                ax.legend()
+            ax.grid(True)
+            plot_idx += 1
+
+        for j in range(plot_idx, len(axes)):
             axes[j].set_visible(False)
 
         plt.tight_layout()
