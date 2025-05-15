@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import json
 import os
 from typing import Any, Callable, Optional, Union
 
 import numpy as np
+import PIL
 import supervision as sv
 import timm
 import torch
@@ -72,7 +75,7 @@ def _initialize_reid_model_from_checkpoint(cls, checkpoint_path: str):
         cls, **config["model_metadata"]
     )
     if config["projection_dimension"]:
-        reid_model_instance.add_projection_layer(
+        reid_model_instance._add_projection_layer(
             projection_dimension=config["projection_dimension"]
         )
     for k, v in state_dict.items():
@@ -125,7 +128,7 @@ class ReIDModel:
         pretrained: bool = True,
         get_pooled_features: bool = True,
         **kwargs,
-    ) -> "ReIDModel":
+    ) -> ReIDModel:
         """
         Create a `ReIDModel` with a [timm](https://huggingface.co/docs/timm)
         model as the backbone.
@@ -135,7 +138,8 @@ class ReIDModel:
                 path to a safetensors checkpoint. If the exact model name is not
                 found, the closest match from `timm.list_models` will be used.
             device (str): Device to run the model on.
-            pretrained (bool): Whether to use pretrained weights from timm or not.
+            pretrained (bool): Whether to use pretrained weights from timm as the
+                backbone or not.
             get_pooled_features (bool): Whether to get the pooled features from the
                 model or not.
             **kwargs: Additional keyword arguments to pass to
@@ -159,20 +163,23 @@ class ReIDModel:
             )
 
     def extract_features(
-        self, frame: np.ndarray, detections: sv.Detections
+        self, detections: sv.Detections, frame: Union[np.ndarray, PIL.Image.Image]
     ) -> np.ndarray:
         """
         Extract features from detection crops in the frame.
 
         Args:
-            frame (np.ndarray): The input frame.
             detections (sv.Detections): Detections from which to extract features.
+            frame (np.ndarray or PIL.Image.Image): The input frame.
 
         Returns:
             np.ndarray: Extracted features for each detection.
         """
         if len(detections) == 0:
             return np.array([])
+
+        if isinstance(frame, PIL.Image.Image):
+            frame = np.array(frame)
 
         features = []
         with torch.inference_mode():
@@ -186,7 +193,7 @@ class ReIDModel:
 
         return np.array(features)
 
-    def add_projection_layer(
+    def _add_projection_layer(
         self, projection_dimension: Optional[int] = None, freeze_backbone: bool = False
     ):
         """
@@ -345,7 +352,7 @@ class ReIDModel:
         if random_state is not None:
             torch.manual_seed(random_state)
 
-        self.add_projection_layer(projection_dimension, freeze_backbone)
+        self._add_projection_layer(projection_dimension, freeze_backbone)
 
         # Initialize optimizer, criterion and metrics
         self.optimizer = optim.Adam(
