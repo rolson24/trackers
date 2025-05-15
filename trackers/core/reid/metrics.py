@@ -34,7 +34,7 @@ class TripletAccuracyMetric(TripletMetric):
     def __init__(self):
         self.correct = 0
         self.total = 0
-    
+
     def __str__(self):
         return "triplet_accuracy"
 
@@ -71,6 +71,7 @@ class AnchorToPositiveDistanceMetric(TripletMetric):
     """
     Calculates the anchor to positive pairwise distance.
     """
+
     def __init__(self):
         self.distance = 0.0
 
@@ -97,6 +98,7 @@ class AnchorToNegativeDistanceMetric(TripletMetric):
     """
     Calculates the anchor to negative pairwise distance.
     """
+
     def __init__(self):
         self.distance = 0.0
 
