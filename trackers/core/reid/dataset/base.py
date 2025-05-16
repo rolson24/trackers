@@ -88,7 +88,8 @@ class TripletsDataset(Dataset):
         Return the number of unique tracker IDs (identities) in the dataset.
 
         Returns:
-            int: The total number of unique identities (tracker IDs) available for sampling triplets.
+            int: The total number of unique identities (tracker IDs) available for
+                sampling triplets.
         """
         return len(self.tracker_ids)
 
@@ -118,7 +119,8 @@ class TripletsDataset(Dataset):
         self, index: int
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
-        Retrieve a random triplet (anchor, positive, negative) of images for a given identity.
+        Retrieve a random triplet (anchor, positive, negative) of images for a given
+        identity.
 
         For the tracker ID at the given index, samples two different images as the
         anchor and positive (same identity), and one image from a different tracker ID
