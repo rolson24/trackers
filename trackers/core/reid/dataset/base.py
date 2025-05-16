@@ -84,6 +84,12 @@ class TripletsDataset(Dataset):
         )
 
     def __len__(self) -> int:
+        """
+        Return the number of unique tracker IDs (identities) in the dataset.
+
+        Returns:
+            int: The total number of unique identities (tracker IDs) available for sampling triplets.
+        """
         return len(self.tracker_ids)
 
     def _load_and_transform_image(self, image_path: str) -> torch.Tensor:
@@ -111,6 +117,20 @@ class TripletsDataset(Dataset):
     def __getitem__(
         self, index: int
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Retrieve a random triplet (anchor, positive, negative) of images for a given identity.
+
+        For the tracker ID at the given index, samples two different images as the
+        anchor and positive (same identity), and one image from a different tracker ID
+        as the negative (different identity).
+
+        Args:
+            index (int): Index of the tracker ID (identity) to sample the triplet from.
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+                A tuple containing the anchor, positive, and negative image tensors.
+        """
         tracker_id = self.tracker_ids[index]
 
         anchor_image_path, positive_image_path, negative_image_path = (
