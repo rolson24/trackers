@@ -106,8 +106,8 @@ def callback(frame, _):
     return annotator.annotate(frame, detections, labels=detections.tracker_id)
 
 sv.process_video(
-    source_path="input.mp4",
-    target_path="output.mp4",
+    source_path="<INPUT_VIDEO_PATH>",
+    target_path="<OUTPUT_VIDEO_PATH>",
     callback=callback,
 )
 ```
