@@ -33,8 +33,8 @@ DeepSORT extends the original [SORT](../sort/tracker.md) algorithm by integratin
         return annotator.annotate(frame, detections, labels=detections.tracker_id)
 
     sv.process_video(
-        source_path="<INPUT_VIDEO_PATH>",
-        target_path="<OUTPUT_VIDEO_PATH>",
+        source_path="input.mp4",
+        target_path="output.mp4",
         callback=callback,
     )
     ```
@@ -57,8 +57,8 @@ DeepSORT extends the original [SORT](../sort/tracker.md) algorithm by integratin
         return annotator.annotate(frame, detections, labels=detections.tracker_id)
 
     sv.process_video(
-        source_path="<INPUT_VIDEO_PATH>",
-        target_path="<OUTPUT_VIDEO_PATH>",
+        source_path="input.mp4",
+        target_path="output.mp4",
         callback=callback,
     )
     ```
@@ -82,8 +82,8 @@ DeepSORT extends the original [SORT](../sort/tracker.md) algorithm by integratin
         return annotator.annotate(frame, detections, labels=detections.tracker_id)
 
     sv.process_video(
-        source_path="<INPUT_VIDEO_PATH>",
-        target_path="<OUTPUT_VIDEO_PATH>",
+        source_path="input.mp4",
+        target_path="output.mp4",
         callback=callback,
     )
     ```
@@ -123,8 +123,8 @@ DeepSORT extends the original [SORT](../sort/tracker.md) algorithm by integratin
         return annotator.annotate(frame, detections, labels=detections.tracker_id)
 
     sv.process_video(
-        source_path="<INPUT_VIDEO_PATH>",
-        target_path="<OUTPUT_VIDEO_PATH>",
+        source_path="input.mp4",
+        target_path="output.mp4",
         callback=callback,
     )
     ```
