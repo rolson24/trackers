@@ -33,15 +33,14 @@ def _initialize_reid_model_from_timm(
     cls,
     model_name_or_checkpoint_path: str,
     device: Optional[str] = "auto",
-    pretrained: bool = True,
     get_pooled_features: bool = True,
     **kwargs,
 ):
     if model_name_or_checkpoint_path not in timm.list_models(
-        filter=model_name_or_checkpoint_path, pretrained=pretrained
+        filter=model_name_or_checkpoint_path, pretrained=True
     ):
         probable_model_name_list = timm.list_models(
-            f"*{model_name_or_checkpoint_path}*", pretrained=pretrained
+            f"*{model_name_or_checkpoint_path}*", pretrained=True
         )
         if len(probable_model_name_list) == 0:
             raise ValueError(
@@ -56,13 +55,12 @@ def _initialize_reid_model_from_timm(
     if not get_pooled_features:
         kwargs["global_pool"] = ""
     model = timm.create_model(
-        model_name_or_checkpoint_path, pretrained=pretrained, num_classes=0, **kwargs
+        model_name_or_checkpoint_path, pretrained=True, num_classes=0, **kwargs
     )
     config = resolve_data_config(model.pretrained_cfg)
     transforms = create_transform(**config)
     model_metadata = {
         "model_name_or_checkpoint_path": model_name_or_checkpoint_path,
-        "pretrained": pretrained,
         "get_pooled_features": get_pooled_features,
         "kwargs": kwargs,
     }
@@ -125,7 +123,6 @@ class ReIDModel:
         cls,
         model_name_or_checkpoint_path: str,
         device: Optional[str] = "auto",
-        pretrained: bool = True,
         get_pooled_features: bool = True,
         **kwargs,
     ) -> ReIDModel:
@@ -138,8 +135,6 @@ class ReIDModel:
                 path to a safetensors checkpoint. If the exact model name is not
                 found, the closest match from `timm.list_models` will be used.
             device (str): Device to run the model on.
-            pretrained (bool): Whether to use pretrained weights from timm as the
-                backbone or not.
             get_pooled_features (bool): Whether to get the pooled features from the
                 model or not.
             **kwargs: Additional keyword arguments to pass to
@@ -157,7 +152,6 @@ class ReIDModel:
                 cls,
                 model_name_or_checkpoint_path,
                 device,
-                pretrained,
                 get_pooled_features,
                 **kwargs,
             )
