@@ -105,9 +105,8 @@ class WandbCallback(BaseCallback):
 
 
 class MatplotlibCallback(BaseCallback):
-    def __init__(self, log_dir: str, max_columns: int = 3):
+    def __init__(self, log_dir: str):
         self.log_dir = log_dir
-        self.max_columns = max_columns
         self.train_history: dict[str, list[tuple[int, float]]] = {}
         self.validation_history: dict[str, list[tuple[int, float]]] = {}
 
@@ -123,110 +122,124 @@ class MatplotlibCallback(BaseCallback):
         for key, value in logs.items():
             self.validation_history.setdefault(key, []).append((epoch, value))
 
+    def _plot_subplot(
+        self,
+        ax,
+        title_prefix: str,
+        base_metric_name: str,
+        xlabel: str,
+        train_keys: list[str],
+        val_keys: Optional[list[str]] = None,
+    ):
+        train_data_points = []
+        for key in train_keys:
+            data = self.train_history.get(key)
+            if data:  # Checks for None and non-empty list
+                train_data_points = data
+                break
+
+        val_data_points = []
+        if val_keys:
+            for key in val_keys:
+                data = self.validation_history.get(key)
+                if data:  # Checks for None and non-empty list
+                    val_data_points = data
+                    break
+
+        plotted_anything = False
+        if train_data_points:
+            x, y = zip(*train_data_points)
+            ax.plot(x, y, label="train", marker=".", markersize=5, linewidth=1)
+            plotted_anything = True
+
+        if val_data_points:
+            x_val, y_val = zip(*val_data_points)
+            ax.plot(
+                x_val,
+                y_val,
+                label="validation",
+                marker=".",
+                markersize=5,
+                linewidth=1,
+                linestyle="--",
+            )
+            plotted_anything = True
+
+        formatted_base_name = " ".join(
+            [item.capitalize() for item in base_metric_name.split("_")]
+        )
+        ax.set_title(f"{title_prefix} {formatted_base_name}")
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(formatted_base_name)
+
+        if plotted_anything:
+            ax.legend()
+            ax.grid(True, linestyle="--", alpha=0.7)
+        else:
+            ax.text(
+                0.5,
+                0.5,
+                "No data",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+                fontsize=10,
+                color="gray",
+            )
+            ax.set_xticks([])
+            ax.set_yticks([])
+            for spine in ax.spines.values():
+                spine.set_edgecolor("lightgray")
+
     def on_end(self):
-        all_metrics_data = list(
-            set(self.train_history.keys()) | set(self.validation_history.keys())
-        )
-        if not all_metrics_data:
+        if not self.train_history and not self.validation_history:
             return
 
-        batch_metrics_names = sorted(
-            [m for m in all_metrics_data if m.startswith("batch/")]
+        fig, axes = plt.subplots(2, 2, figsize=(12, 8), squeeze=False)
+
+        # Plot 1: Top-left - Batch Triplet Accuracy
+        self._plot_subplot(
+            axes[0, 0],
+            title_prefix="Batch",
+            base_metric_name="triplet_accuracy",
+            xlabel="Batch",
+            train_keys=["batch/triplet_accuracy", "batch/train/triplet_accuracy"],
+            val_keys=None,
         )
 
-        epoch_metrics_all_keys = sorted(
-            [m for m in all_metrics_data if not m.startswith("batch/")]
+        # Plot 2: Top-right - Epoch Triplet Accuracy
+        self._plot_subplot(
+            axes[0, 1],
+            title_prefix="Epoch",
+            base_metric_name="triplet_accuracy",
+            xlabel="Epoch",
+            train_keys=["train/triplet_accuracy", "triplet_accuracy"],
+            val_keys=["validation/triplet_accuracy", "triplet_accuracy"],
         )
-        epoch_metrics_grouped = {}
-        for metric_name in epoch_metrics_all_keys:
-            parts = metric_name.split("/")
-            base_name = parts[-1]
-            epoch_metrics_grouped.setdefault(base_name, []).append(metric_name)
 
-        num_batch_plots = len(batch_metrics_names)
-        num_epoch_group_plots = len(epoch_metrics_grouped)
-        num_plots = num_batch_plots + num_epoch_group_plots
-
-        if num_plots == 0:
-            return
-
-        n_cols = min(self.max_columns, num_plots)
-        n_rows = (num_plots + n_cols - 1) // n_cols
-
-        fig, axes = plt.subplots(
-            n_rows, n_cols, figsize=(5 * n_cols, 4 * n_rows), squeeze=False
+        # Plot 3: Bottom-left - Batch Loss
+        self._plot_subplot(
+            axes[1, 0],
+            title_prefix="Batch",
+            base_metric_name="loss",
+            xlabel="Batch",
+            train_keys=["batch/loss", "batch/train/loss"],
+            val_keys=None,
         )
-        axes = axes.flatten()
 
-        plot_idx = 0
+        # Plot 4: Bottom-right - Epoch Loss
+        self._plot_subplot(
+            axes[1, 1],
+            title_prefix="Epoch",
+            base_metric_name="loss",
+            xlabel="Epoch",
+            train_keys=["train/loss", "loss"],
+            val_keys=["validation/loss", "loss"],
+        )
 
-        for metric_name in batch_metrics_names:
-            ax = axes[plot_idx]
-            train_data = self.train_history.get(metric_name, [])
-            val_data = self.validation_history.get(metric_name, [])
+        os.makedirs(self.log_dir, exist_ok=True)
 
-            plotted_anything = False
-            if train_data:
-                x_train, y_train = zip(*train_data)
-                ax.plot(x_train, y_train, label="train", marker="o")
-                plotted_anything = True
-            if val_data:
-                x_val, y_val = zip(*val_data)
-                ax.plot(x_val, y_val, label="validation", marker="o", linestyle="--")
-                plotted_anything = True
-
-            base_metric_name = metric_name.split("/")[-1]
-            plot_title = " ".join([item.capitalize() for item in base_name.split("_")])
-            ax.set_title(f"Batch {plot_title}")
-            ax.set_xlabel("batch")
-            ax.set_ylabel(base_metric_name)
-            if plotted_anything:
-                ax.legend()
-            ax.grid(True)
-            plot_idx += 1
-
-        for base_name, _ in sorted(epoch_metrics_grouped.items()):
-            ax = axes[plot_idx]
-            plotted_anything_for_group = False
-
-            train_series_data = []
-            if f"train/{base_name}" in self.train_history:
-                train_series_data = self.train_history[f"train/{base_name}"]
-            elif base_name in self.train_history:
-                train_series_data = self.train_history[base_name]
-
-            if train_series_data:
-                x_pts, y_pts = zip(*train_series_data)
-                ax.plot(x_pts, y_pts, label="train", marker="o")
-                plotted_anything_for_group = True
-
-            validation_series_data = []
-            if f"validation/{base_name}" in self.validation_history:
-                validation_series_data = self.validation_history[
-                    f"validation/{base_name}"
-                ]
-            elif base_name in self.validation_history:
-                validation_series_data = self.validation_history[base_name]
-
-            if validation_series_data:
-                x_pts, y_pts = zip(*validation_series_data)
-                ax.plot(x_pts, y_pts, label="validation", marker="o", linestyle="--")
-                plotted_anything_for_group = True
-
-            plot_title = " ".join([item.capitalize() for item in base_name.split("_")])
-            ax.set_title(f"Epoch {plot_title}")
-            ax.set_xlabel("epoch")
-            ax.set_ylabel(base_name)
-
-            if plotted_anything_for_group:
-                ax.legend()
-            ax.grid(True)
-            plot_idx += 1
-
-        for j in range(plot_idx, len(axes)):
-            axes[j].set_visible(False)
-
-        plt.tight_layout()
-        fig.savefig(os.path.join(self.log_dir, "metrics_plot.png"))
+        plt.tight_layout(pad=2.0)
+        fig.savefig(os.path.join(self.log_dir, "metrics_plot.png"), dpi=150)
         plt.show()
         plt.close(fig)
