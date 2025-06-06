@@ -24,9 +24,10 @@ jobs:
           fetch-depth: 0
 
       - name: 🐍 Install uv and set Python ${{ matrix.python-version }}
-        uses: astral-sh/setup-uv@0c5e2b8115b80b4c7c5ddf6ffdd634974642d182 # v5.4.1
+        uses: astral-sh/setup-uv@f0ec1fc3b38f5e7cd731bb6ce540c5af426746bb # v6.1.0
         with:
           python-version: ${{ matrix.python-version }}
+          activate-environment: true
 
       - name: 🏗️ Install dependencies
         run: uv pip install -r pyproject.toml --group docs --python-version ${{ matrix.python-version }}
